@@ -26,6 +26,21 @@ using namespace std;
 
 BOOST_FIXTURE_TEST_SUITE(bloom_tests, BasicTestingSetup)
 
+BOOST_AUTO_TEST_CASE(bloom_deserialize_large_fpr)
+{
+    CBloomFilter sentFilter(50, 0.5, 0, BLOOM_UPDATE_ALL);
+    CBloomFilter receivedFilter;
+    vector<unsigned char> target = ParseHex("99108ad8ed9bb6274d3980bab5a85c048f0950c8");
+
+    sentFilter.insert(target);
+
+    CDataStream ss(SER_DISK, 0);
+    ss << sentFilter;
+    ss >> receivedFilter;
+
+    BOOST_CHECK_MESSAGE(receivedFilter.contains(target), "BloomFilter doesn't contain object after deserialization!");
+}
+
 BOOST_AUTO_TEST_CASE(bloom_create_insert_serialize)
 {
     CBloomFilter filter(3, 0.01, 0, BLOOM_UPDATE_ALL);

@@ -20,6 +20,7 @@
 
 #define LN2SQUARED 0.4804530139182014246671025263266649717305529515945455
 #define LN2 0.6931471805599453094172321214581765680755001343602552
+#define MIN_N_HASH_FUNC 1
 
 using namespace std;
 
@@ -44,7 +45,7 @@ void CBloomFilter::setup(unsigned int nElements,
     isFull = vData.size() == 0;
     isEmpty = true;
 
-    nHashFuncs = (unsigned int)(vData.size() * 8 / nElements * LN2);
+    nHashFuncs = (unsigned int)max(MIN_N_HASH_FUNC, int(vData.size() * 8 / nElements * LN2));
 
     if (size_constrained)
         nHashFuncs = min(nHashFuncs, MAX_HASH_FUNCS);
