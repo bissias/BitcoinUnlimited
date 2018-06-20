@@ -179,6 +179,7 @@ if ENABLE_ZMQ:
 
 #Tests
 testScripts = [ RpcTest(t) for t in [
+    'grapheneblocks',
     'cashlibtest',
     'tweak',
     'notify',
