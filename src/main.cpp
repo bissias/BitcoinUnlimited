@@ -5220,9 +5220,12 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
             // Track requests for our stuff.
             GetMainSignals().Inventory(inv.hash);
 
-            // BUIP010 Xtreme Thinblocks: if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK)
+            // We only want to process one of these message types before returning. These are high
+            // priority messages and we don't want to sit here processing a large number of messages
+            // while we hold the cs_main lock, but rather allow these messages to be sent first and
+            // process the return message before potentially reading from the queue again.
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_THINBLOCK ||
-                inv.type == MSG_XTHINBLOCK)
+                inv.type == MSG_XTHINBLOCK || inv.type == MSG_GRAPHENEBLOCK)
                 break;
         }
     }
@@ -5452,7 +5455,7 @@ bool ProcessMessage(CNode *pfrom, std::string strCommand, CDataStream &vRecv, in
         }
 
         // Tell the peer what maximum xthin bloom filter size we will consider acceptable.
-        if (pfrom->ThinBlockCapable())
+        if (pfrom->ThinBlockCapable() && IsThinBlocksEnabled())
         {
             pfrom->PushMessage(NetMsgType::FILTERSIZEXTHIN, nXthinBloomFilterSize);
         }
@@ -6935,6 +6938,22 @@ bool ProcessMessages(CNode *pfrom)
     return fOk;
 }
 
+static bool CheckForDownloadTimeout(CNode *pto, bool fReceived, int64_t &nRequestTime)
+{
+    // Use a timeout of 6 times the retry inverval before disconnecting.  This way only a max of 6
+    // re-requested thinblocks or graphene blocks could be in memory at any one time.
+    if (!fReceived && (GetTime() - nRequestTime) > 6 * blkReqRetryInterval / 1000000)
+    {
+        if (!pto->fWhitelisted && Params().NetworkIDString() != "regtest")
+        {
+            LOG(THIN, "ERROR: Disconnecting peer %s due to thinblock download timeout exceeded (%d secs)\n",
+                pto->GetLogName(), (GetTime() - nRequestTime));
+            pto->fDisconnect = true;
+            return true;
+        }
+    }
+    return false;
+}
 
 bool SendMessages(CNode *pto)
 {
@@ -6999,31 +7018,26 @@ bool SendMessages(CNode *pto)
             }
         }
 
-        // Check to see if there are any thinblocks in flight that have gone beyond the timeout interval.
-        // If so then we need to disconnect them so that the thinblock data is nullified.  We coud null
-        // the thinblock data here but that would possible cause a node to be baneed later if the thinblock
-        // finally did show up. Better to just disconnect this slow node instead.
-        if (pto->mapThinBlocksInFlight.size() > 0)
+        // Check to see if there are any thinblocks or graphene blocks in flight that have gone beyond the
+        // timeout interval. If so then we need to disconnect them so that the thinblock data is nullified.
+        // We could null the associated data here but that would possibly cause a node to be banned later if
+        // the thinblock or graphene block finally did show up, so instead we just disconnect this slow node.
+        if (!pto->mapThinBlocksInFlight.empty())
         {
             LOCK(pto->cs_mapthinblocksinflight);
-            std::map<uint256, CNode::CThinBlockInFlight>::iterator iter = pto->mapThinBlocksInFlight.begin();
-            while (iter != pto->mapThinBlocksInFlight.end())
+            for (auto &item : pto->mapThinBlocksInFlight)
             {
-                // Use a timeout of 6 times the retry inverval before disconnecting.  This way only a max of 6
-                // re-requested thinblocks could be in memory at any one time.
-                if (!(*iter).second.fReceived &&
-                    (GetTime() - (*iter).second.nRequestTime) > 6 * blkReqRetryInterval / 1000000)
-                {
-                    if (!pto->fWhitelisted && Params().NetworkIDString() != "regtest")
-                    {
-                        LOG(THIN, "ERROR: Disconnecting peer %s due to thinblock download timeout exceeded "
-                                  "(%d secs)\n",
-                            pto->GetLogName(), (GetTime() - (*iter).second.nRequestTime));
-                        pto->fDisconnect = true;
-                        break;
-                    }
-                }
-                iter++;
+                if (CheckForDownloadTimeout(pto, item.second.fReceived, item.second.nRequestTime))
+                    break;
+            }
+        }
+        if (!pto->mapGrapheneBlocksInFlight.empty())
+        {
+            LOCK(pto->cs_mapgrapheneblocksinflight);
+            for (auto &item : pto->mapGrapheneBlocksInFlight)
+            {
+                if (CheckForDownloadTimeout(pto, item.second.fReceived, item.second.nRequestTime))
+                    break;
             }
         }
 
