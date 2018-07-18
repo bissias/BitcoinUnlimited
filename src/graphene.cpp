@@ -370,7 +370,7 @@ bool CGrapheneBlock::HandleMessage(CDataStream &vRecv, CNode *pfrom, std::string
             return true;
         }
 
-        // Request failover block if this one isn't extending the best chain
+        // Request full block if this one isn't extending the best chain
         if (pIndex->nChainWork <= chainActive.Tip()->nChainWork)
         {
             std::vector<CInv> vGetData;
@@ -379,9 +379,8 @@ bool CGrapheneBlock::HandleMessage(CDataStream &vRecv, CNode *pfrom, std::string
 
             graphenedata.ClearGrapheneBlockData(pfrom, grapheneBlock.header.GetHash());
 
-            RequestFailoverBlock(pfrom, grapheneBlock.header.GetHash());
-            LOGA("%s %s from peer %s received but does not extend longest chain; requesting failover block\n",
-                strCommand, inv.hash.ToString(), pfrom->GetLogName());
+            LOGA("%s %s from peer %s received but does not extend longest chain; requesting full block\n", strCommand,
+                inv.hash.ToString(), pfrom->GetLogName());
             return true;
         }
 
@@ -449,6 +448,7 @@ bool CGrapheneBlock::process(CNode *pfrom,
     int missingCount = 0;
     int unnecessaryCount = 0;
     bool collision = false;
+    bool fRequestFailover = false;
     std::set<uint256> passingTxHashes;
     std::map<uint64_t, uint256> mapPartialTxHash;
     std::vector<uint256> memPoolHashes;
@@ -531,18 +531,16 @@ bool CGrapheneBlock::process(CNode *pfrom,
             }
             catch (const std::runtime_error &e)
             {
-                RequestFailoverBlock(pfrom, header.GetHash());
+                fRequestFailover = true;
                 LOG(GRAPHENE, "Graphene set could not be reconciled; requesting failover for peer %s: %s\n",
                     pfrom->GetLogName(), e.what());
 
                 graphenedata.ClearGrapheneBlockData(pfrom, header.GetHash());
                 graphenedata.IncrementDecodeFailures();
-
-                return true;
             }
 
             // Reconstruct the block if there are no hashes to re-request
-            if (setHashesToRequest.empty())
+            if (setHashesToRequest.empty() && !fRequestFailover)
             {
                 bool mutated;
                 uint256 merkleroot = ComputeMerkleRoot(pfrom->grapheneBlockHashes, &mutated);
@@ -558,12 +556,20 @@ bool CGrapheneBlock::process(CNode *pfrom,
     } // End locking cs_orphancache, mempool.cs and cs_xval
     LOG(GRAPHENE, "Total in-memory graphene bytes size is %ld bytes\n", graphenedata.GetGrapheneBlockBytes());
 
+    // This must be checked outside of the above section or deadlock may occur.
+    if (fRequestFailover)
+    {
+        RequestFailoverBlock(pfrom, header.GetHash());
+        return true;
+    }
+
     // These must be checked outside of the mempool.cs lock or deadlock may occur.
     // A merkle root mismatch here does not cause a ban because and expedited node will forward an graphene
     // without checking the merkle root, therefore we don't want to ban our expedited nodes. Just request
     // a failover block if a mismatch occurs.
     // Also, there is a remote possiblity of a Tx hash collision therefore if it occurs we request a failover
-    // block.
+    // block. Note in the event that the failover block is XThin, we expect a collision there as well. However,
+    // the XThin block will itself failover to a thinblock, which will not have a collision.
     if (collision || !fMerkleRootCorrect)
     {
         RequestFailoverBlock(pfrom, header.GetHash());
