@@ -29,6 +29,8 @@ SOFTWARE.
 #include <set>
 #include <vector>
 
+static const size_t BITS_32 = 4294967295;
+
 //
 // Invertible Bloom Lookup Table implementation
 // References:
@@ -74,6 +76,8 @@ public:
     // Pass the expected number of entries in the IBLT table. If the number of entries exceeds
     // the expected, then the decode failure rate will increase dramatically.
     CIblt(size_t _expectedNumEntries);
+    // IBLTs with different salts are guaranteed to use different hash functions.
+    CIblt(size_t _expectedNumEntries, uint32_t salt);
     // Copy constructor
     CIblt(const CIblt &other);
     ~CIblt();
@@ -83,6 +87,7 @@ public:
     // Returns the size in bytes of the IBLT.  This is NOT the count of inserted entries
     size_t size();
     void resize(size_t _expectedNumEntries);
+    uint32_t saltedHashValue(size_t hashFuncIdx, const std::vector<uint8_t> &kvec) const;
     void insert(uint64_t k, const std::vector<uint8_t> &v);
     void erase(uint64_t k, const std::vector<uint8_t> &v);
 
@@ -117,6 +122,7 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream &s, Operation ser_action)
     {
+        READWRITE(salt);
         READWRITE(COMPACTSIZE(version));
         if (ser_action.ForRead() && version != 0)
             throw std::ios_base::failure("Only IBLT version zero is currently known.");
@@ -126,6 +132,10 @@ public:
         {
             throw std::ios_base::failure("Number of IBLT hash functions needs to be > 0");
         }
+
+        if (salt * n_hash > BITS_32)
+            throw std::ios_base::failure("salt * n_hash must fit in uint32_t");
+
         READWRITE(is_modified);
         READWRITE(hashTable);
     }
@@ -135,6 +145,7 @@ public:
 protected:
     void _insert(int plusOrMinus, uint64_t k, const std::vector<uint8_t> &v);
 
+    uint32_t salt;
     uint64_t version;
     uint8_t n_hash;
     bool is_modified;

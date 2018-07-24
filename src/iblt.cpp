@@ -85,13 +85,23 @@ CIblt::CIblt()
     n_hash = 1;
     is_modified = false;
     version = 0;
+    salt = 0;
 }
 
-CIblt::CIblt(size_t _expectedNumEntries) : is_modified(false), version(0) { CIblt::resize(_expectedNumEntries); }
+CIblt::CIblt(size_t _expectedNumEntries) : is_modified(false), version(0), salt(0)
+{
+    CIblt::resize(_expectedNumEntries);
+}
+CIblt::CIblt(size_t _expectedNumEntries, uint32_t _salt) : is_modified(false), version(0)
+{
+    CIblt::salt = _salt;
+    CIblt::resize(_expectedNumEntries);
+}
 CIblt::CIblt(const CIblt &other) : is_modified(false), version(0)
 {
     n_hash = other.n_hash;
     hashTable = other.hashTable;
+    salt = other.salt;
 }
 
 CIblt::~CIblt() {}
@@ -110,12 +120,21 @@ void CIblt::resize(size_t _expectedNumEntries)
 
     CIblt::n_hash = OptimalNHash(_expectedNumEntries);
 
+    if (salt * n_hash > BITS_32)
+        throw std::runtime_error("salt * n_hash must fit in uint32_t");
+
     // reduce probability of failure by increasing by overhead factor
     size_t nEntries = (size_t)(_expectedNumEntries * OptimalOverhead(_expectedNumEntries));
     // ... make nEntries exactly divisible by n_hash
     while (n_hash * (nEntries / n_hash) != nEntries)
         ++nEntries;
     hashTable.resize(nEntries);
+}
+
+uint32_t CIblt::saltedHashValue(size_t hashFuncIdx, const std::vector<uint8_t> &kvec) const
+{
+    uint32_t seed = salt * n_hash + hashFuncIdx;
+    return MurmurHash3(seed, kvec) & KEYCHECK_MASK;
 }
 
 void CIblt::_insert(int plusOrMinus, uint64_t k, const std::vector<uint8_t> &v)
@@ -133,7 +152,7 @@ void CIblt::_insert(int plusOrMinus, uint64_t k, const std::vector<uint8_t> &v)
     {
         size_t startEntry = i * bucketsPerHash;
 
-        uint32_t h = MurmurHash3(i, kvec);
+        uint32_t h = saltedHashValue(i, kvec);
         HashTableEntry &entry = hashTable.at(startEntry + (h % bucketsPerHash));
         entry.count += plusOrMinus;
         entry.keySum ^= k;
@@ -170,7 +189,7 @@ bool CIblt::get(uint64_t k, std::vector<uint8_t> &result) const
     {
         size_t startEntry = i * bucketsPerHash;
 
-        uint32_t h = MurmurHash3(i, kvec);
+        uint32_t h = saltedHashValue(i, kvec);
         const HashTableEntry &entry = hashTable.at(startEntry + (h % bucketsPerHash));
 
         if (entry.empty())
