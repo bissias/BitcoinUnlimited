@@ -99,9 +99,10 @@ CIblt::CIblt(size_t _expectedNumEntries, uint32_t _salt) : is_modified(false), v
 }
 CIblt::CIblt(const CIblt &other) : is_modified(false), version(0)
 {
+    salt = other.salt;
     n_hash = other.n_hash;
     hashTable = other.hashTable;
-    salt = other.salt;
+    mapHashIdxSeeds = other.mapHashIdxSeeds;
 }
 
 CIblt::~CIblt() {}
@@ -123,6 +124,10 @@ void CIblt::resize(size_t _expectedNumEntries)
     if (salt * n_hash > BITS_32)
         throw std::runtime_error("salt * n_hash must fit in uint32_t");
 
+    // set hash seeds from salt
+    for (size_t i = 0; i < n_hash; i++)
+        mapHashIdxSeeds[i] = salt * n_hash + i;
+
     // reduce probability of failure by increasing by overhead factor
     size_t nEntries = (size_t)(_expectedNumEntries * OptimalOverhead(_expectedNumEntries));
     // ... make nEntries exactly divisible by n_hash
@@ -133,7 +138,7 @@ void CIblt::resize(size_t _expectedNumEntries)
 
 uint32_t CIblt::saltedHashValue(size_t hashFuncIdx, const std::vector<uint8_t> &kvec) const
 {
-    uint32_t seed = salt * n_hash + hashFuncIdx;
+    uint32_t seed = mapHashIdxSeeds.at(hashFuncIdx);
     return MurmurHash3(seed, kvec) & KEYCHECK_MASK;
 }
 

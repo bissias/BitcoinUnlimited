@@ -138,6 +138,7 @@ public:
 
         READWRITE(is_modified);
         READWRITE(hashTable);
+        READWRITE(mapHashIdxSeeds);
     }
 
     // Returns true if any elements have been inserted into the IBLT since creation or reset
@@ -151,6 +152,7 @@ protected:
     bool is_modified;
 
     std::vector<HashTableEntry> hashTable;
+    std::map<uint8_t, uint32_t> mapHashIdxSeeds;
 };
 
 #endif /* CIblt_H */
