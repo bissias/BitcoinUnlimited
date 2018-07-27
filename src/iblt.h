@@ -29,7 +29,8 @@ SOFTWARE.
 #include <set>
 #include <vector>
 
-static const size_t BITS_32 = 4294967295;
+static const size_t VALS_8 = 256;
+static const size_t VALS_32 = 4294967296;
 
 //
 // Invertible Bloom Lookup Table implementation
@@ -90,6 +91,9 @@ public:
     uint32_t saltedHashValue(size_t hashFuncIdx, const std::vector<uint8_t> &kvec) const;
     void insert(uint64_t k, const std::vector<uint8_t> &v);
     void erase(uint64_t k, const std::vector<uint8_t> &v);
+    // This method will produce unpredictable results when two IBLTs are concatenated
+    // and different items have been inserted into each.
+    void concat(const CIblt &other);
 
     // Returns true if a result is definitely found or not
     // found. If not found, result will be empty.
@@ -133,16 +137,19 @@ public:
             throw std::ios_base::failure("Number of IBLT hash functions needs to be > 0");
         }
 
-        if (salt * n_hash > BITS_32)
+        if (salt * n_hash > VALS_32 - 1)
             throw std::ios_base::failure("salt * n_hash must fit in uint32_t");
 
         READWRITE(is_modified);
+        READWRITE(is_concat);
         READWRITE(hashTable);
         READWRITE(mapHashIdxSeeds);
     }
 
     // Returns true if any elements have been inserted into the IBLT since creation or reset
     inline bool isModified() { return is_modified; }
+    // Returns true if IBLT is result of concatenation between two or more IBLTs
+    inline bool isConcat() { return is_concat; }
 protected:
     void _insert(int plusOrMinus, uint64_t k, const std::vector<uint8_t> &v);
 
@@ -150,6 +157,7 @@ protected:
     uint64_t version;
     uint8_t n_hash;
     bool is_modified;
+    bool is_concat;
 
     std::vector<HashTableEntry> hashTable;
     std::map<uint8_t, uint32_t> mapHashIdxSeeds;

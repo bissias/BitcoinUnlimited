@@ -30,6 +30,9 @@ SOFTWARE.
 #include <utility>
 
 static const size_t N_HASHCHECK = 11;
+// It's extremely unlikely that an IBLT will decode with fewer
+// than 1 cell for every 10 items.
+static const float MIN_OVERHEAD = 0.1;
 
 // mask that can be reduced to reduce the number of checksum bits in the IBLT
 // -- ANY VALUE OTHER THAN 0xffffffff IS FOR TESTING ONLY! --
@@ -84,15 +87,16 @@ CIblt::CIblt()
 {
     n_hash = 1;
     is_modified = false;
+    is_concat = false;
     version = 0;
     salt = 0;
 }
 
-CIblt::CIblt(size_t _expectedNumEntries) : is_modified(false), version(0), salt(0)
+CIblt::CIblt(size_t _expectedNumEntries) : is_modified(false), is_concat(false), version(0), salt(0)
 {
     CIblt::resize(_expectedNumEntries);
 }
-CIblt::CIblt(size_t _expectedNumEntries, uint32_t _salt) : is_modified(false), version(0)
+CIblt::CIblt(size_t _expectedNumEntries, uint32_t _salt) : is_modified(false), is_concat(false), version(0)
 {
     CIblt::salt = _salt;
     CIblt::resize(_expectedNumEntries);
@@ -101,6 +105,7 @@ CIblt::CIblt(const CIblt &other) : is_modified(false), version(0)
 {
     salt = other.salt;
     n_hash = other.n_hash;
+    is_concat = other.is_concat;
     hashTable = other.hashTable;
     mapHashIdxSeeds = other.mapHashIdxSeeds;
 }
@@ -112,6 +117,7 @@ void CIblt::reset()
     hashTable.clear();
     hashTable.resize(size);
     is_modified = false;
+    is_concat = false;
 }
 
 size_t CIblt::size() { return hashTable.size(); }
@@ -121,12 +127,12 @@ void CIblt::resize(size_t _expectedNumEntries)
 
     CIblt::n_hash = OptimalNHash(_expectedNumEntries);
 
-    if (salt * n_hash > BITS_32)
+    if (salt * n_hash > VALS_32 - 1)
         throw std::runtime_error("salt * n_hash must fit in uint32_t");
 
     // set hash seeds from salt
     for (size_t i = 0; i < n_hash; i++)
-        mapHashIdxSeeds[i] = salt * n_hash + i;
+        mapHashIdxSeeds[i] = salt * VALS_8 + i;
 
     // reduce probability of failure by increasing by overhead factor
     size_t nEntries = (size_t)(_expectedNumEntries * OptimalOverhead(_expectedNumEntries));
@@ -177,6 +183,32 @@ void CIblt::_insert(int plusOrMinus, uint64_t k, const std::vector<uint8_t> &v)
 
 void CIblt::insert(uint64_t k, const std::vector<uint8_t> &v) { _insert(1, k, v); }
 void CIblt::erase(uint64_t k, const std::vector<uint8_t> &v) { _insert(-1, k, v); }
+void CIblt::concat(const CIblt &other)
+{
+    // hashTables are simply concatenated
+    hashTable.insert(hashTable.end(), other.hashTable.begin(), other.hashTable.end());
+
+    // populate set of seeds in this
+    std::set<uint32_t> thisSalts;
+    for (auto kv : mapHashIdxSeeds)
+        thisSalts.insert(kv.second);
+
+    // make sure seeds from other do not intersect seeds from this
+    for (auto kv : other.mapHashIdxSeeds)
+    {
+        if (thisSalts.count(kv.second) > 0)
+            throw std::runtime_error("key seed from other cannot match key seed from this");
+    }
+
+    // there is no conflict in seeds so combine seed maps
+    // make sure to bump the key indices for keys from other
+    for (size_t i = 0; i < other.n_hash; i++)
+        mapHashIdxSeeds[i + n_hash] = other.mapHashIdxSeeds.at(i);
+
+    n_hash = n_hash + other.n_hash;
+    is_concat = true;
+}
+
 bool CIblt::get(uint64_t k, std::vector<uint8_t> &result) const
 {
     result.clear();
@@ -211,7 +243,7 @@ bool CIblt::get(uint64_t k, std::vector<uint8_t> &result) const
                 result.assign(entry.valueSum.begin(), entry.valueSum.end());
                 return true;
             }
-            else
+            else if (!is_concat)
             {
                 // Definitely not in table.
                 return true;
@@ -254,6 +286,7 @@ bool CIblt::listEntries(std::set<std::pair<uint64_t, std::vector<uint8_t> > > &p
     CIblt peeled = *this;
 
     size_t nErased = 0;
+    size_t nTotalErased = 0;
     do
     {
         nErased = 0;
@@ -276,7 +309,8 @@ bool CIblt::listEntries(std::set<std::pair<uint64_t, std::vector<uint8_t> > > &p
                 ++nErased;
             }
         }
-    } while (nErased > 0);
+        nTotalErased += nErased;
+    } while (nErased > 0 && nTotalErased < peeled.hashTable.size() / MIN_OVERHEAD);
 
     if (!n_hash)
         return false;
@@ -325,11 +359,11 @@ std::string CIblt::DumpTable() const
 {
     std::ostringstream result;
 
-    result << "count keySum keyCheckMatch\n";
+    result << "cell count keySum keyCheckMatch\n";
     for (size_t i = 0; i < hashTable.size(); i++)
     {
         const HashTableEntry &entry = hashTable.at(i);
-        result << entry.count << " " << entry.keySum << " ";
+        result << i << " " << entry.count << " " << entry.keySum << " ";
         result << (keyChecksumCalc(ToVec(entry.keySum)) == entry.keyCheck ? "true" : "false");
         result << "\n";
     }

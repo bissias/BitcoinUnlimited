@@ -21,6 +21,36 @@ std::vector<uint8_t> PseudoRandomValue(uint32_t n)
 
 BOOST_FIXTURE_TEST_SUITE(iblt_tests, BasicTestingSetup)
 
+BOOST_AUTO_TEST_CASE(iblt_concatable)
+{
+    bool gotResult;
+    std::vector<uint8_t> result;
+    std::set<std::pair<uint64_t, std::vector<uint8_t> > > expected;
+
+    CIblt t1(3, 1);
+    uint8_t n_hash1 = t1.getNHash();
+    for (int i = 0; i < 5; i++)
+    {
+        t1.insert(i, PseudoRandomValue(i));
+        expected.insert(std::make_pair(i, PseudoRandomValue(i)));
+    }
+
+    CIblt t2(3, 2);
+    uint8_t n_hash2 = t2.getNHash();
+    for (int i = 0; i < 5; i++)
+        t2.insert(i, PseudoRandomValue(i));
+
+    t1.concat(t2);
+    BOOST_CHECK(t1.getNHash() == n_hash1 + n_hash2);
+    gotResult = t1.get(0, result);
+    BOOST_CHECK(gotResult && result == PseudoRandomValue(0));
+    gotResult = t1.get(2, result);
+    BOOST_CHECK(gotResult && result == PseudoRandomValue(2));
+    std::set<std::pair<uint64_t, std::vector<uint8_t> > > entries;
+    bool fAllFound = t1.listEntries(entries, entries);
+    BOOST_CHECK(fAllFound && entries == expected);
+}
+
 BOOST_AUTO_TEST_CASE(iblt_handles_small_quantities)
 {
 	bool allPassed = true;
