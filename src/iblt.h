@@ -144,6 +144,13 @@ public:
         READWRITE(is_modified);
         READWRITE(hashTable);
         READWRITE(mapHashIdxSeeds);
+
+        // make sure we have n_hash distinct seeds
+        std::set<uint32_t> seeds;
+        for (auto &kv : mapHashIdxSeeds)
+            seeds.insert(kv.second);
+        if (seeds.size() < n_hash)
+            throw std::ios_base::failure("fewer than n_hash distinct seeds in mapHashIdxSeeds");
     }
 
     // Returns true if any elements have been inserted into the IBLT since creation or reset

@@ -128,6 +128,7 @@ void CIblt::resize(size_t _expectedNumEntries)
         throw std::runtime_error("salt * n_hash must fit in uint32_t");
 
     // set hash seeds from salt
+    mapHashIdxSeeds.clear();
     for (size_t i = 0; i < n_hash; i++)
         mapHashIdxSeeds[i] = salt * VALS_8 + i;
 
