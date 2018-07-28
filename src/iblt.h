@@ -91,8 +91,9 @@ public:
     uint32_t saltedHashValue(size_t hashFuncIdx, const std::vector<uint8_t> &kvec) const;
     void insert(uint64_t k, const std::vector<uint8_t> &v);
     void erase(uint64_t k, const std::vector<uint8_t> &v);
-    // This method will produce unpredictable results when two IBLTs are concatenated
-    // and different items have been inserted into each.
+    // This method concatenates IBLT "other" to the calling IBLT.
+    // Warning: the resulting IBLT may not decode if the two IBLTs concatenated
+    // hold different sets of items at the time of concatenation.
     void concat(const CIblt &other);
 
     // Returns true if a result is definitely found or not
@@ -141,15 +142,12 @@ public:
             throw std::ios_base::failure("salt * n_hash must fit in uint32_t");
 
         READWRITE(is_modified);
-        READWRITE(is_concat);
         READWRITE(hashTable);
         READWRITE(mapHashIdxSeeds);
     }
 
     // Returns true if any elements have been inserted into the IBLT since creation or reset
     inline bool isModified() { return is_modified; }
-    // Returns true if IBLT is result of concatenation between two or more IBLTs
-    inline bool isConcat() { return is_concat; }
 protected:
     void _insert(int plusOrMinus, uint64_t k, const std::vector<uint8_t> &v);
 
@@ -157,7 +155,6 @@ protected:
     uint64_t version;
     uint8_t n_hash;
     bool is_modified;
-    bool is_concat;
 
     std::vector<HashTableEntry> hashTable;
     std::map<uint8_t, uint32_t> mapHashIdxSeeds;

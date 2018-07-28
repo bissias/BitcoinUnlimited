@@ -87,16 +87,15 @@ CIblt::CIblt()
 {
     n_hash = 1;
     is_modified = false;
-    is_concat = false;
     version = 0;
     salt = 0;
 }
 
-CIblt::CIblt(size_t _expectedNumEntries) : is_modified(false), is_concat(false), version(0), salt(0)
+CIblt::CIblt(size_t _expectedNumEntries) : is_modified(false), version(0), salt(0)
 {
     CIblt::resize(_expectedNumEntries);
 }
-CIblt::CIblt(size_t _expectedNumEntries, uint32_t _salt) : is_modified(false), is_concat(false), version(0)
+CIblt::CIblt(size_t _expectedNumEntries, uint32_t _salt) : is_modified(false), version(0)
 {
     CIblt::salt = _salt;
     CIblt::resize(_expectedNumEntries);
@@ -105,7 +104,6 @@ CIblt::CIblt(const CIblt &other) : is_modified(false), version(0)
 {
     salt = other.salt;
     n_hash = other.n_hash;
-    is_concat = other.is_concat;
     hashTable = other.hashTable;
     mapHashIdxSeeds = other.mapHashIdxSeeds;
 }
@@ -117,7 +115,6 @@ void CIblt::reset()
     hashTable.clear();
     hashTable.resize(size);
     is_modified = false;
-    is_concat = false;
 }
 
 size_t CIblt::size() { return hashTable.size(); }
@@ -206,7 +203,6 @@ void CIblt::concat(const CIblt &other)
         mapHashIdxSeeds[i + n_hash] = other.mapHashIdxSeeds.at(i);
 
     n_hash = n_hash + other.n_hash;
-    is_concat = true;
 }
 
 bool CIblt::get(uint64_t k, std::vector<uint8_t> &result) const
@@ -243,7 +239,7 @@ bool CIblt::get(uint64_t k, std::vector<uint8_t> &result) const
                 result.assign(entry.valueSum.begin(), entry.valueSum.end());
                 return true;
             }
-            else if (!is_concat)
+            else
             {
                 // Definitely not in table.
                 return true;
