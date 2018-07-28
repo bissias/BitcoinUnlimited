@@ -89,16 +89,19 @@ CIblt::CIblt()
     is_modified = false;
     version = 0;
     salt = 0;
+    CIblt::_setupSeeds();
 }
 
 CIblt::CIblt(size_t _expectedNumEntries) : is_modified(false), version(0), salt(0)
 {
     CIblt::resize(_expectedNumEntries);
+    CIblt::_setupSeeds();
 }
 CIblt::CIblt(size_t _expectedNumEntries, uint32_t _salt) : is_modified(false), version(0)
 {
     CIblt::salt = _salt;
     CIblt::resize(_expectedNumEntries);
+    CIblt::_setupSeeds();
 }
 CIblt::CIblt(const CIblt &other) : is_modified(false), version(0)
 {
@@ -109,6 +112,14 @@ CIblt::CIblt(const CIblt &other) : is_modified(false), version(0)
 }
 
 CIblt::~CIblt() {}
+
+void CIblt::_setupSeeds()
+{
+    mapHashIdxSeeds.clear();
+    for (size_t i = 0; i < n_hash; i++)
+        mapHashIdxSeeds[i] = salt * VALS_8 + i;
+}
+
 void CIblt::reset()
 {
     size_t size = this->size();
@@ -127,10 +138,10 @@ void CIblt::resize(size_t _expectedNumEntries)
     if (salt * n_hash > VALS_32 - 1)
         throw std::runtime_error("salt * n_hash must fit in uint32_t");
 
-    // set hash seeds from salt
-    mapHashIdxSeeds.clear();
-    for (size_t i = 0; i < n_hash; i++)
-        mapHashIdxSeeds[i] = salt * VALS_8 + i;
+    // IBLT must have already been constructed and this is a resize
+    // that follows a reset. In this case we may need to resize seeds as well.
+    if (mapHashIdxSeeds.size() > 0 && mapHashIdxSeeds.size() < n_hash)
+        _setupSeeds();
 
     // reduce probability of failure by increasing by overhead factor
     size_t nEntries = (size_t)(_expectedNumEntries * OptimalOverhead(_expectedNumEntries));
