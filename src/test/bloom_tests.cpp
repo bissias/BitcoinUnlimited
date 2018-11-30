@@ -1022,4 +1022,56 @@ BOOST_AUTO_TEST_CASE(bloom_full_and_size_tests)
         BOOST_CHECK(filter.vDataSize() < 50000);
     }
 }
+
+BOOST_AUTO_TEST_CASE(bloom_test_fpr)
+{
+    int nTrials = 1000;
+    std::map<int, float> fprs = {{1, 1.020278912257651e-05}, {10, 0.0001020278912257651}, {100, 0.001020278912257651},
+        {500, 0.005101394561288255}, {1000, 0.01020278912257651}, {1500, 0.015304183683864764},
+        {2000, 0.02040557824515302}, {5000, 0.17344741508380068}};
+    int nItemArr[] = {1, 10, 100, 500, 1000, 1500, 2000, 5000};
+    int nExcessArr[] = {1000};
+    float targetErrorRates[] = {0.1, 0.05, 0.01};
+    float startDelta = 0.1;
+
+    std::cout << "nItems,"
+              << "nExcess,"
+              << "delta,"
+              << "fpr,"
+              << "targetError"
+              << ","
+              << "error" << std::endl;
+    for (int nItems : nItemArr)
+    {
+        for (int nExcess : nExcessArr)
+        {
+            for (float targetErrorRate : targetErrorRates)
+            {
+                float errorRate = 1.0;
+                float delta = startDelta;
+                while (errorRate > targetErrorRate)
+                {
+                    int errorCt = 0;
+                    for (int i = 0; i < nTrials; i++)
+                    {
+                        CBloomFilter filter(nItems, fprs[nItems], 0, BLOOM_UPDATE_NONE, 1e10, true);
+                        int fpCt = 0;
+                        for (int j = 0; j < nItems; j++)
+                            filter.insert(RandomData());
+                        for (int j = 0; j < nExcess; j++)
+                        {
+                            fpCt += (int)filter.contains(RandomData());
+                        }
+                        if (fpCt > fprs[nItems] * nExcess * (1 + delta))
+                            errorCt += 1;
+                    }
+                    errorRate = errorCt / float(nTrials);
+                    delta *= 2;
+                }
+                std::cout << nItems << "," << nExcess << "," << delta << "," << fprs[nItems] << "," << targetErrorRate
+                          << "," << errorRate << std::endl;
+            }
+        }
+    }
+}
 BOOST_AUTO_TEST_SUITE_END()
