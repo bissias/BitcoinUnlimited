@@ -53,9 +53,12 @@ CGrapheneBlock::CGrapheneBlock(const CBlockRef pblock,
     else if (version >= 3)
         grapheneSetVersion = 2;
 
-    useSipHash = _useSipHash;
-    if (useSipHash)
+    version = _version;
+    if (version >= 2)
+    {
         FillShortTxIDSelector();
+        grapheneSetVersion = 1;
+    }
 
     std::vector<uint256> blockHashes;
     for (auto &tx : pblock->vtx)
@@ -1355,8 +1358,6 @@ bool ClearLargestGrapheneBlockAndDisconnect(CNode *pfrom)
 
 void SendGrapheneBlock(CBlockRef pblock, CNode *pfrom, const CInv &inv, const CMemPoolInfo &mempoolinfo)
 {
-    pfrom->useSipHash = pfrom->xVersion.as_u64c(XVer::BU_GRAPHENE_VERSION_SUPPORTED) >= 2;
-
     if (inv.type == MSG_GRAPHENEBLOCK)
     {
         try
@@ -1529,9 +1530,9 @@ uint64_t GetShortID(uint64_t shorttxidk0, uint64_t shorttxidk1, const uint256 &t
 }
 
 // Generate cheap hash from seeds using SipHash
-uint64_t GetShortID(uint64_t shorttxidk0, uint64_t shorttxidk1, const uint256 &txhash, bool useSipHash)
+uint64_t GetShortID(uint64_t shorttxidk0, uint64_t shorttxidk1, const uint256 &txhash, uint64_t grapheneVersion)
 {
-    if (!useSipHash)
+    if (grapheneVersion < 2)
         return txhash.GetCheapHash();
 
     static_assert(SHORTTXIDS_LENGTH == 8, "shorttxids calculation assumes 8-byte shorttxids");
