@@ -125,13 +125,6 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream &s, Operation ser_action)
     {
-        if (version > 0)
-        {
-            READWRITE(salt);
-            if (salt > VALS_32 / n_hash)
-                throw std::ios_base::failure("salt * n_hash must fit in uint32_t");
-        }
-
         READWRITE(COMPACTSIZE(version));
 
         if (version > 0)
@@ -150,7 +143,6 @@ public:
         }
         READWRITE(is_modified);
         READWRITE(hashTable);
-        READWRITE(mapHashIdxSeeds);
     }
 
     // Returns true if any elements have been inserted into the IBLT since creation or reset
