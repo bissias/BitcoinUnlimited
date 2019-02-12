@@ -64,10 +64,10 @@ CGrapheneBlock::CGrapheneBlock(const CBlockRef pblock,
 
     if (enableCanonicalTxOrder.Value())
         pGrapheneSet = new CGrapheneSet(nReceiverMemPoolTx, nSenderMempoolPlusBlock, blockHashes, shorttxidk0,
-            shorttxidk1, grapheneSetVersion, (uint32_t)sipHashNonce, false);
+            shorttxidk1, grapheneSetVersion, (uint32_t)sipHashNonce, true, false);
     else
         pGrapheneSet = new CGrapheneSet(nReceiverMemPoolTx, nSenderMempoolPlusBlock, blockHashes, shorttxidk0,
-            shorttxidk1, grapheneSetVersion, (uint32_t)sipHashNonce, true);
+            shorttxidk1, grapheneSetVersion, (uint32_t)sipHashNonce, true, true);
 }
 
 CGrapheneBlock::~CGrapheneBlock()

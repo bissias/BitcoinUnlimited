@@ -103,7 +103,9 @@ public:
             throw std::runtime_error("nBlockTxs exceeds threshold for excessive block txs");
         if (!pGrapheneSet)
         {
-            if (version > 2)
+            if (version > 3)
+                pGrapheneSet = new CGrapheneSet(3);
+            else if (version == 3)
                 pGrapheneSet = new CGrapheneSet(2);
             else if (version == 2)
                 pGrapheneSet = new CGrapheneSet(1);

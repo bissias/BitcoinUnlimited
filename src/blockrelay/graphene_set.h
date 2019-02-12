@@ -6,6 +6,7 @@
 #define BITCOIN_GRAPHENE_SET_H
 
 #include "bloom.h"
+#include "fastfilter.h"
 #include "hash.h"
 #include "iblt.h"
 #include "random.h"
@@ -38,8 +39,10 @@ private:
     mutable uint64_t shorttxidk0, shorttxidk1;
     uint64_t version;
     uint32_t ibltSalt;
+    bool computeOptimized;
     std::vector<unsigned char> encodedRank;
     CBloomFilter *pSetFilter;
+    CVariableFastFilter *pFastFilter;
     CIblt *pSetIblt;
 
     static const uint8_t SHORTTXIDS_LENGTH = 8;
@@ -58,12 +61,12 @@ public:
     // The default constructor is for 2-phase construction via deserialization
     CGrapheneSet()
         : ordered(false), nReceiverUniverseItems(0), shorttxidk0(0), shorttxidk1(0), version(1), ibltSalt(0),
-          pSetFilter(nullptr), pSetIblt(nullptr)
+          computeOptimized(false), pSetFilter(nullptr), pFastFilter(nullptr), pSetIblt(nullptr)
     {
     }
     CGrapheneSet(uint64_t _version)
-        : ordered(false), nReceiverUniverseItems(0), shorttxidk0(0), shorttxidk1(0), ibltSalt(0), pSetFilter(nullptr),
-          pSetIblt(nullptr)
+        : ordered(false), nReceiverUniverseItems(0), shorttxidk0(0), shorttxidk1(0), ibltSalt(0),
+          computeOptimized(false), pSetFilter(nullptr), pFastFilter(nullptr), pSetIblt(nullptr)
     {
         version = _version;
     }
@@ -74,6 +77,7 @@ public:
         uint64_t _shorttxidk1,
         uint64_t _version = 1,
         uint32_t ibltEntropy = 0,
+        bool _computeOptimized = false,
         bool _ordered = false,
         bool fDeterministic = false);
 
@@ -153,6 +157,8 @@ public:
     {
         READWRITE(ordered);
         READWRITE(nReceiverUniverseItems);
+        if (nReceiverUniverseItems > LARGE_MEM_POOL_SIZE)
+            throw std::runtime_error("nReceiverUniverseItems exceeds threshold for excessive mempool size");
         if (version > 0)
         {
             READWRITE(shorttxidk0);
@@ -160,16 +166,29 @@ public:
         }
         if (version >= 2)
             READWRITE(ibltSalt);
-        if (nReceiverUniverseItems > LARGE_MEM_POOL_SIZE)
-            throw std::runtime_error("nReceiverUniverseItems exceeds threshold for excessive mempool size");
+        if (version >= 3)
+            READWRITE(computeOptimized);
         READWRITE(encodedRank);
-        if (!pSetFilter)
-            pSetFilter = new CBloomFilter();
-        READWRITE(*pSetFilter);
+        if (version >= 3 && computeOptimized)
+        {
+            if (!pFastFilter)
+                pFastFilter = new CVariableFastFilter();
+
+            READWRITE(*pFastFilter);
+        }
+        else
+        {
+            if (!pSetFilter)
+                pSetFilter = new CBloomFilter();
+
+            READWRITE(*pSetFilter);
+        }
         if (!pSetIblt)
             pSetIblt = new CIblt();
         READWRITE(*pSetIblt);
     }
 };
+
+uint64_t nextPowerOfTwo(uint64_t n);
 
 #endif // BITCOIN_GRAPHENE_SET_H

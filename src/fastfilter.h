@@ -7,6 +7,7 @@
 
 #include "random.h"
 #include "serialize.h"
+#include "util.h"
 #include <vector>
 
 class uint256;
@@ -23,10 +24,10 @@ constexpr bool isPow2(unsigned int num) { return num && !(num & (num - 1)); }
  *
  * This class can be used anywhere a Bloom filter is used so long as the input data is random.
  *
- * If NUM_HASH_FNS is 16 and FILTER_SIZE is >= 64k all bits in the uint256 input data will be used to set bits in
- * the filter.  If these fields are set to lower numbers, fewer bits may be used (although in the NUM_HASH_FNS case
+ * If nHashFuncs is 16 and nFilterItems is >= 64k all bits in the uint256 input data will be used to set bits in
+ * the filter.  If these fields are set to lower numbers, fewer bits may be used (although in the nHashFuncs case
  * execution will be faster).  Therefore, if this structure is used in an application that accepts externally created
- * uint256 numbers that are sensitive to deliberately constructed collisions, be sure to keep NUM_HASH_FNS high enough
+ * uint256 numbers that are sensitive to deliberately constructed collisions, be sure to keep nHashFuncs high enough
  * that the creation of collisions in the used bits is not feasible.
  *
  * Note also that the input bits are used without obfuscation or mixing so if an attacker can control some input bits
@@ -39,28 +40,31 @@ constexpr bool isPow2(unsigned int num) { return num && !(num & (num - 1)); }
  * but "inserts" may be lost.  However, if you are using this class as an in-ram filter before doing a more expensive
  * operation, a lost insert may be acceptable.
  *
- * FILTER_SIZE must be a power of 2, and NUM_HASH_FNS may range from 2 to 16 inclusive.  Since hashes are calculated
- * in pairs of 2, odd values of NUM_HASH_FNS are rounded down.
+ * nFilterItems must be a power of 2, and nHashFuncs may range from 2 to 16 inclusive.  Since hashes are calculated
+ * in pairs of 2, odd values of nHashFuncs are rounded down.
  */
-template <unsigned int FILTER_SIZE, unsigned int NUM_HASH_FNS = 16>
-class CFastFilter
+class CVariableFastFilter
 {
 protected:
     // A bit vector containing the bloom filter data
     std::vector<unsigned char> vData;
 
 public:
-    enum
-    {
-        FILTER_BYTES = FILTER_SIZE / 8
-    };
+    uint8_t nHashFuncs;
+    uint64_t nFilterItems;
 
-    CFastFilter()
+    CVariableFastFilter() : nHashFuncs(2), nFilterItems(2){};
+
+    CVariableFastFilter(uint8_t _nHashFuncs, uint64_t _nFilterItems)
     {
-        static_assert((NUM_HASH_FNS > 1) && (NUM_HASH_FNS <= 16), "NUM_HASH_FNS must be between 2 and 16 inclusive");
-        static_assert(isPow2(FILTER_SIZE) && (FILTER_SIZE > 1), "FILTER_SIZE must be a power of 2 greater than 1");
+        nHashFuncs = _nHashFuncs;
+        nFilterItems = _nFilterItems;
+
+        assert((nHashFuncs > 1) && (nHashFuncs <= 16));
+        assert(isPow2(nFilterItems) && (nFilterItems > 1));
+
         FastRandomContext insecure_rand;
-        vData.resize(FILTER_BYTES);
+        vData.resize(std::max(1, (int)std::ceil(nFilterItems / 8)));
     }
 
 
@@ -69,16 +73,16 @@ public:
     {
         const uint32_t *pos = (const uint32_t *)hash.begin();
         bool unset = 0; // If any position is not set, then this will be true
-        for (unsigned int i = 0; i < NUM_HASH_FNS / 2; i++, pos++)
+        for (unsigned int i = 0; i < nHashFuncs / 2; i++, pos++)
         {
             uint32_t val = *pos;
-            uint32_t idx = val & (FILTER_SIZE - 1);
+            uint32_t idx = val & (nFilterItems - 1);
             uint32_t bit = (1 << (idx & 7));
             idx >>= 3;
             unset |= (0 == (vData[idx] & bit));
 
             val = __builtin_bswap32(val);
-            uint32_t idx2 = val & (FILTER_SIZE - 1);
+            uint32_t idx2 = val & (nFilterItems - 1);
             uint32_t bit2 = (1 << (idx2 & 7));
             idx2 >>= 3;
 
@@ -93,12 +97,12 @@ public:
     void insert(const uint256 &hash)
     {
         const uint32_t *pos = (const uint32_t *)hash.begin();
-        for (unsigned int i = 0; i < NUM_HASH_FNS / 2; i++, pos++)
+        for (unsigned int i = 0; i < nHashFuncs / 2; i++, pos++)
         {
             uint32_t val = *pos;
-            uint32_t idx = val & (FILTER_SIZE - 1);
+            uint32_t idx = val & (nFilterItems - 1);
             val = __builtin_bswap32(val);
-            uint32_t idx2 = val & (FILTER_SIZE - 1);
+            uint32_t idx2 = val & (nFilterItems - 1);
 
             vData[idx >> 3] |= (1 << (idx & 7));
             vData[idx2 >> 3] |= (1 << (idx2 & 7));
@@ -109,12 +113,12 @@ public:
     {
         const uint32_t *pos = (const uint32_t *)hash.begin();
         bool unset = 0; // If any position is not set, then this will be true
-        for (unsigned int i = 0; i < NUM_HASH_FNS / 2; i++, pos++)
+        for (unsigned int i = 0; i < nHashFuncs / 2; i++, pos++)
         {
             uint32_t val = *pos;
-            uint32_t idx = val & (FILTER_SIZE - 1);
+            uint32_t idx = val & (nFilterItems - 1);
             val = __builtin_bswap32(val);
-            uint32_t idx2 = val & (FILTER_SIZE - 1);
+            uint32_t idx2 = val & (nFilterItems - 1);
 
             unset |= (0 == (vData[idx >> 3] & (1 << (idx & 7))));
             unset |= (0 == (vData[idx2 >> 3] & (1 << (idx2 & 7))));
@@ -122,7 +126,38 @@ public:
         return !unset;
     }
 
-    void reset() { memset(&vData[0], 0, FILTER_BYTES); }
+    void reset() { memset(&vData[0], 0, nFilterItems / 8); }
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream &s, Operation ser_action)
+    {
+        READWRITE(vData);
+        READWRITE(nHashFuncs);
+        READWRITE(nFilterItems);
+    }
+};
+
+
+template <unsigned int FILTER_SIZE, unsigned int NUM_HASH_FNS = 16>
+class CFastFilter : public CVariableFastFilter
+{
+public:
+    enum
+    {
+        FILTER_BYTES = FILTER_SIZE / 8
+    };
+
+    CFastFilter()
+    {
+        static_assert((NUM_HASH_FNS > 1) && (NUM_HASH_FNS <= 16), "NUM_HASH_FNS must be between 2 and 16 inclusive");
+        static_assert(isPow2(FILTER_SIZE) && (FILTER_SIZE > 1), "FILTER_SIZE must be a power of 2 greater than 1");
+        nHashFuncs = NUM_HASH_FNS;
+        nFilterItems = FILTER_SIZE;
+
+        FastRandomContext insecure_rand;
+        vData.resize(FILTER_BYTES);
+    }
 };
 
 
