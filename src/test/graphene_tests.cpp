@@ -284,15 +284,33 @@ BOOST_AUTO_TEST_CASE(graphene_block_can_serde)
                  "508053c75000106d3bc6e2754dbcff1988ac2f15de00000000001976a914a266436d2965547608b9e15d9032a7b9d64fa4318"
                  "8ac00000000"),
         SER_DISK, CLIENT_VERSION);
-    stream >> tx;
-    const CTransactionRef ptx = MakeTransactionRef(tx);
-    block.vtx.push_back(ptx);
-    CGrapheneBlock senderGrapheneBlock(MakeBlockRef(block), 5, 6, 2);
-    CGrapheneBlock receiverGrapheneBlock(2);
-    CDataStream ss(SER_DISK, 0);
 
-    ss << senderGrapheneBlock;
-    ss >> receiverGrapheneBlock;
+    // regular graphene block
+    {
+        stream >> tx;
+        const CTransactionRef ptx = MakeTransactionRef(tx);
+        block.vtx.push_back(ptx);
+        CGrapheneBlock senderGrapheneBlock(MakeBlockRef(block), 5, 6, 4, false);
+        CGrapheneBlock receiverGrapheneBlock(4);
+        CDataStream ss(SER_DISK, 0);
+
+        ss << senderGrapheneBlock;
+        ss >> receiverGrapheneBlock;
+    }
+    
+    // compute optimized graphene block
+    {
+        stream >> tx;
+        const CTransactionRef ptx = MakeTransactionRef(tx);
+        block.vtx.push_back(ptx);
+        CGrapheneBlock senderGrapheneBlock(MakeBlockRef(block), 5, 6, 4, false);
+        CGrapheneBlock receiverGrapheneBlock(4);
+        CDataStream ss(SER_DISK, 0);
+
+        ss << senderGrapheneBlock;
+        ss >> receiverGrapheneBlock;
+    }
 }
+
 
 BOOST_AUTO_TEST_SUITE_END()

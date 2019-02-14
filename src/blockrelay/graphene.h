@@ -60,14 +60,16 @@ public:
     uint64_t nBlockTxs;
     CGrapheneSet *pGrapheneSet;
     uint64_t version;
+    bool computeOptimized;
 
 public:
     CGrapheneBlock(const CBlockRef pblock,
         uint64_t nReceiverMemPoolTx,
         uint64_t nSenderMempoolPlusBlock,
-        uint64_t _version);
-    CGrapheneBlock() : shorttxidk0(0), shorttxidk1(0), pGrapheneSet(nullptr), version(2) {}
-    CGrapheneBlock(uint64_t _version) : shorttxidk0(0), shorttxidk1(0), pGrapheneSet(nullptr) { version = _version; }
+        uint64_t _version,
+        bool _computeOptimized);
+    CGrapheneBlock() : shorttxidk0(0), shorttxidk1(0), pGrapheneSet(nullptr), version(2), computeOptimized(false) {}
+    CGrapheneBlock(uint64_t _version) : shorttxidk0(0), shorttxidk1(0), pGrapheneSet(nullptr), computeOptimized(false) { version = _version; }
     ~CGrapheneBlock();
     // Create seeds for SipHash using the sipHashNonce generated in the constructor
     // Note that this must be called any time members header or sipHashNonce are changed
