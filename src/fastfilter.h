@@ -40,8 +40,7 @@ constexpr bool isPow2(unsigned int num) { return num && !(num & (num - 1)); }
  * but "inserts" may be lost.  However, if you are using this class as an in-ram filter before doing a more expensive
  * operation, a lost insert may be acceptable.
  *
- * nFilterItems must be a power of 2, and nHashFuncs may range from 2 to 16 inclusive.  Since hashes are calculated
- * in pairs of 2, odd values of nHashFuncs are rounded down.
+ * nHashFuncs may range from 2 to 32 inclusive.
  */
 class CVariableFastFilter
 {
@@ -60,7 +59,7 @@ public:
         nHashFuncs = _nHashFuncs;
         nFilterItems = _nFilterItems;
 
-        assert((nHashFuncs > 1) && (nHashFuncs <= 16));
+        assert((nHashFuncs > 1) && (nHashFuncs <= 32));
         assert(isPow2(nFilterItems) && (nFilterItems > 1));
 
         FastRandomContext insecure_rand;
@@ -73,39 +72,27 @@ public:
     {
         const uint32_t *pos = (const uint32_t *)hash.begin();
         bool unset = 0; // If any position is not set, then this will be true
-        for (unsigned int i = 0; i < nHashFuncs / 2; i++, pos++)
+        for (unsigned int i = 0; i < nHashFuncs; i++, pos++)
         {
             uint32_t val = *pos;
-            uint32_t idx = val & (nFilterItems - 1);
+            uint32_t idx = val % (nFilterItems - 1);
             uint32_t bit = (1 << (idx & 7));
             idx >>= 3;
             unset |= (0 == (vData[idx] & bit));
-
-            val = __builtin_bswap32(val);
-            uint32_t idx2 = val & (nFilterItems - 1);
-            uint32_t bit2 = (1 << (idx2 & 7));
-            idx2 >>= 3;
-
-            unset |= (0 == (vData[idx2] & bit2));
-
             vData[idx] |= bit;
-            vData[idx2] |= bit2;
         }
+
         return unset;
     }
 
     void insert(const uint256 &hash)
     {
         const uint32_t *pos = (const uint32_t *)hash.begin();
-        for (unsigned int i = 0; i < nHashFuncs / 2; i++, pos++)
+        for (unsigned int i = 0; i < nHashFuncs; i++, pos++)
         {
             uint32_t val = *pos;
-            uint32_t idx = val & (nFilterItems - 1);
-            val = __builtin_bswap32(val);
-            uint32_t idx2 = val & (nFilterItems - 1);
-
+            uint32_t idx = val % (nFilterItems - 1);
             vData[idx >> 3] |= (1 << (idx & 7));
-            vData[idx2 >> 3] |= (1 << (idx2 & 7));
         }
     }
 
@@ -113,16 +100,13 @@ public:
     {
         const uint32_t *pos = (const uint32_t *)hash.begin();
         bool unset = 0; // If any position is not set, then this will be true
-        for (unsigned int i = 0; i < nHashFuncs / 2; i++, pos++)
+        for (unsigned int i = 0; i < nHashFuncs; i++, pos++)
         {
             uint32_t val = *pos;
-            uint32_t idx = val & (nFilterItems - 1);
-            val = __builtin_bswap32(val);
-            uint32_t idx2 = val & (nFilterItems - 1);
-
+            uint32_t idx = val % (nFilterItems - 1);
             unset |= (0 == (vData[idx >> 3] & (1 << (idx & 7))));
-            unset |= (0 == (vData[idx2 >> 3] & (1 << (idx2 & 7))));
         }
+
         return !unset;
     }
 
