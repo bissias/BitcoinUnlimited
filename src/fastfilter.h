@@ -60,7 +60,7 @@ public:
         nFilterItems = _nFilterItems;
 
         assert((nHashFuncs > 1) && (nHashFuncs <= 32));
-        assert(isPow2(nFilterItems) && (nFilterItems > 1));
+        assert(nFilterItems > 1);
 
         FastRandomContext insecure_rand;
         vData.resize(std::max(1, (int)std::ceil(nFilterItems / 8)));
