@@ -8,8 +8,10 @@
 #include "random.h"
 #include "serialize.h"
 #include "util.h"
+#include <cmath>
 #include <vector>
 
+const uint32_t MAX_32_BIT = (int)pow(2, 32) - 1;
 class uint256;
 
 // Statically evaluated expression to return whether a number is a power of 2
@@ -50,7 +52,7 @@ protected:
 
 public:
     uint8_t nHashFuncs;
-    uint64_t nFilterItems;
+    uint32_t nFilterItems;
 
     CVariableFastFilter() : nHashFuncs(2), nFilterItems(2){};
 
@@ -60,7 +62,7 @@ public:
         nFilterItems = _nFilterItems;
 
         assert((nHashFuncs > 1) && (nHashFuncs <= 32));
-        assert(nFilterItems > 1);
+        assert((nFilterItems > 1) && (nFilterItems <= MAX_32_BIT));
 
         FastRandomContext insecure_rand;
         vData.resize(std::max(1, (int)std::ceil(nFilterItems / 8)));
