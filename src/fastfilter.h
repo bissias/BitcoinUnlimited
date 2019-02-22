@@ -11,6 +11,10 @@
 #include <cmath>
 #include <vector>
 
+#define LN2SQUARED 0.4804530139182014246671025263266649717305529515945455
+#define LN2 0.6931471805599453094172321214581765680755001343602552
+#define MIN_N_HASH_FUNC 1
+#define MAX_N_HASH_FUNC 32
 const uint32_t MAX_32_BIT = (int)pow(2, 32) - 1;
 class uint256;
 
@@ -18,7 +22,7 @@ class uint256;
  * This class can be used anywhere a Bloom filter is used so long as the input data is random.
  *
  * If nHashFuncs is 16 and nFilterItems is >= 64k all bits in the uint256 input data will be used to set bits in
- * the filter.   
+ * the filter.
  *
  * nHashFuncs may range from 2 to 32 inclusive.
  */
@@ -30,20 +34,36 @@ protected:
 
 public:
     uint8_t nHashFuncs;
-    uint32_t nFilterItems;
+    uint32_t nFilterBytes;
+    uint64_t nFilterItems;
 
     CVariableFastFilter() : nHashFuncs(2), nFilterItems(2){};
 
-    CVariableFastFilter(uint8_t _nHashFuncs, uint64_t _nFilterItems)
+    CVariableFastFilter(uint64_t nElements, double nFPRate)
     {
-        nHashFuncs = _nHashFuncs;
-        nFilterItems = _nFilterItems;
+        if (nElements == 0)
+        {
+            LOGA("Construction of empty CVariableFastFilter attempted.\n");
+            nElements = 1;
+        }
 
-        assert((nHashFuncs > 1) && (nHashFuncs <= 32));
-        assert((nFilterItems > 1) && (nFilterItems <= MAX_32_BIT));
+        nFilterBytes = (uint32_t)(std::ceil(-1 / LN2SQUARED * nElements * log(nFPRate) / 8));
+        nFilterItems = 8 * nFilterBytes;
 
-        FastRandomContext insecure_rand;
-        vData.resize(std::max(1, (int)std::ceil(nFilterItems / 8)));
+        if (nFilterBytes > MAX_32_BIT)
+            throw std::runtime_error("CVariableFastFilter can have size no greater than 2**32-1 bytes.");
+
+        vData.resize(nFilterBytes, 0);
+
+        unsigned int optimalNHashFuncs =
+            (unsigned int)std::max(MIN_N_HASH_FUNC, int(nFilterBytes * 8 / nElements * LN2));
+        if (optimalNHashFuncs > MAX_N_HASH_FUNC)
+        {
+            LOGA("CVariableFastFilter constructed with suboptimal number of hash functions.\n");
+            nHashFuncs = MAX_N_HASH_FUNC;
+        }
+        else
+            nHashFuncs = optimalNHashFuncs;
     }
 
 
@@ -90,7 +110,7 @@ public:
         return !unset;
     }
 
-    void reset() { memset(&vData[0], 0, nFilterItems / 8); }
+    void reset() { memset(&vData[0], 0, nFilterBytes); }
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>

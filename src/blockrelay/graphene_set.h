@@ -200,6 +200,4 @@ public:
     }
 };
 
-uint64_t nextPowerOfTwo(uint64_t n);
-
 #endif // BITCOIN_GRAPHENE_SET_H

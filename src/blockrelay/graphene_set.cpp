@@ -79,7 +79,7 @@ CGrapheneSet::CGrapheneSet(size_t _nReceiverUniverseItems,
     // Construct Bloom filter
     if (computeOptimized)
     {
-        pFastFilter = new CVariableFastFilter(4, nextPowerOfTwo((int)std::max(2, (int)nItems)));
+        pFastFilter = new CVariableFastFilter(nItems, fpr);
     }
     else
     {
@@ -380,18 +380,4 @@ std::vector<uint64_t> CGrapheneSet::DecodeRank(std::vector<unsigned char> encode
             items[i] |= bits[j + i * nBitsPerItem] << j;
     }
     return items;
-}
-
-uint64_t nextPowerOfTwo(uint64_t n)
-{
-    --n;
-
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n |= n >> 32;
-
-    return n + 1;
 }
