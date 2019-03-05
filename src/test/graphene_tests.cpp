@@ -1,6 +1,7 @@
 #include "blockrelay/graphene.h"
 #include "blockrelay/graphene_set.h"
 #include "bloom.h"
+#include "fastfilter.h"
 #include "hash.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"
@@ -16,18 +17,27 @@
 
 #define MAX_GRAPHENE_SET_VERSION 1
 
-size_t ProjectedGrapheneSizeBytes(uint64_t nBlockTxs, uint64_t nExcessTxs, uint64_t nSymDiff)
+size_t ProjectedGrapheneSizeBytes(uint64_t nBlockTxs, uint64_t nExcessTxs, uint64_t nSymDiff, bool computeOptimized=false)
 {
     const int SERIALIZATION_OVERHEAD = 11;
     FastRandomContext insecure_rand(true);
     auto fpr = [nExcessTxs](int a) { return a / float(nExcessTxs); };
 
-    CBloomFilter filter(
-        nBlockTxs, fpr(nSymDiff), insecure_rand.rand32(), BLOOM_UPDATE_ALL, true, std::numeric_limits<uint32_t>::max());
     CIblt iblt(nSymDiff, 0);
-
-    size_t filterBytes = ::GetSerializeSize(filter, SER_NETWORK, PROTOCOL_VERSION) - SERIALIZATION_OVERHEAD;
     size_t ibltBytes = ::GetSerializeSize(iblt, SER_NETWORK, PROTOCOL_VERSION) - SERIALIZATION_OVERHEAD;
+
+    size_t filterBytes;
+    if (computeOptimized)
+    {
+        CVariableFastFilter filter(nBlockTxs, fpr(nSymDiff));
+        filterBytes = ::GetSerializeSize(filter, SER_NETWORK, PROTOCOL_VERSION) - SERIALIZATION_OVERHEAD;
+    }
+    else
+    {
+        CBloomFilter filter(
+            nBlockTxs, fpr(nSymDiff), insecure_rand.rand32(), BLOOM_UPDATE_ALL, true, std::numeric_limits<uint32_t>::max());
+        filterBytes = ::GetSerializeSize(filter, SER_NETWORK, PROTOCOL_VERSION) - SERIALIZATION_OVERHEAD;
+    }
 
     return filterBytes + ibltBytes;
 }
@@ -150,6 +160,9 @@ BOOST_AUTO_TEST_CASE(graphene_set_finds_brute_force_opt_for_small_blocks)
     for (a = 1; a < m - mu; a++)
     {
         size_t totalBytes = ProjectedGrapheneSizeBytes(n, m - mu, a);
+        size_t totalBytesOpt = ProjectedGrapheneSizeBytes(n, m - mu, a, true);
+
+        BOOST_CHECK_EQUAL(totalBytes, totalBytesOpt);
 
         if (totalBytes < best_size)
         {
@@ -185,8 +198,11 @@ BOOST_AUTO_TEST_CASE(graphene_set_approx_opt_close_to_optimal)
     float totalBytesApprox = (float)ProjectedGrapheneSizeBytes(n, m - mu, grapheneSet.ApproxOptimalSymDiff(n));
     float totalBytesBrute =
         (float)ProjectedGrapheneSizeBytes(n, m - mu, grapheneSet.BruteForceSymDiff(n, m, m - mu, 0));
+    float totalBytesBruteOpt =
+        (float)ProjectedGrapheneSizeBytes(n, m - mu, grapheneSet.BruteForceSymDiff(n, m, m - mu, 0), true);
 
     BOOST_CHECK_CLOSE(totalBytesApprox, totalBytesBrute, 15);
+    BOOST_CHECK_CLOSE(totalBytesApprox, totalBytesBruteOpt, 15);
 }
 
 BOOST_AUTO_TEST_CASE(graphene_set_decodes_empty_intersection)
