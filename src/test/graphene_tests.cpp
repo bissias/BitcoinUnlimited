@@ -11,6 +11,7 @@
 
 #include <boost/test/unit_test.hpp>
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <iostream>
 #include <iomanip>
@@ -286,6 +287,56 @@ BOOST_AUTO_TEST_CASE(compute_optimized_graphene_set_can_serde)
     ss >> receivedGrapheneSet;
 
     BOOST_CHECK_EQUAL(receivedGrapheneSet.Reconcile(senderItems)[0], sentGrapheneSet.GetShortID(senderItems[0]));
+}
+
+BOOST_AUTO_TEST_CASE(graphene_set_cpu_check)
+{
+    size_t nItems = 10000;
+    int nNumHashes = 0;
+
+    std::vector<uint256> senderItems;
+    std::vector<uint64_t> senderCheapHashes;
+    std::vector<uint256> baseReceiverItems;
+    for (size_t i = 1; i <= nItems; i++)
+    {
+        nNumHashes++;
+        const uint256 &hash = GetHash(nNumHashes);
+        senderItems.push_back(hash);
+        senderCheapHashes.push_back(hash.GetCheapHash());
+        baseReceiverItems.push_back(hash);
+    }
+
+    // Add 10000 more items to receiver mempool
+    std::vector<uint256> receiverItems = baseReceiverItems;
+    for (size_t j = 1; j < 10000; j++)
+    {
+        nNumHashes++;
+        receiverItems.push_back(SerializeHash(GetHash(nNumHashes)));
+    }
+
+    auto legacyStart = std::chrono::high_resolution_clock::now();
+    CGrapheneSet legacyGrapheneSet(
+        receiverItems.size(), receiverItems.size(), senderItems, 0, 0, 0, 0, false, false, true);
+    legacyGrapheneSet.Reconcile(receiverItems);
+    auto legacyFinish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> legacyElapsed = legacyFinish - legacyStart;
+    std::cout << "Legacy elapsed time: " << legacyElapsed.count() << " s\n";
+
+    auto sipStart = std::chrono::high_resolution_clock::now();
+    CGrapheneSet sipGrapheneSet(
+        receiverItems.size(), receiverItems.size(), senderItems, 0, 0, 2, 0, false, false, true);
+    sipGrapheneSet.Reconcile(receiverItems);
+    auto sipFinish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> sipElapsed = sipFinish - sipStart;
+    std::cout << "Sip elapsed time: " << sipElapsed.count() << " s\n";
+
+    auto fastStart = std::chrono::high_resolution_clock::now();
+    CGrapheneSet fastGrapheneSet(
+        receiverItems.size(), receiverItems.size(), senderItems, 0, 0, 3, 0, true, false, true);
+    fastGrapheneSet.Reconcile(receiverItems);
+    auto fastFinish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> fastElapsed = fastFinish - fastStart;
+    std::cout << "Fast elapsed time: " << fastElapsed.count() << " s\n";
 }
 
 BOOST_AUTO_TEST_CASE(graphene_block_can_serde)
