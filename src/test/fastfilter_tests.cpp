@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(variablefastfilter_tests)
             if (filt.contains(tmp))
                 numFalsePositives++;
         }
-        BOOST_CHECK(numFalsePositives < buffer*n*fpr); // sanity check, actual result may vary
+        BOOST_CHECK(numFalsePositives < buffer * n * fpr); // sanity check, actual result may vary
     }
 }
 

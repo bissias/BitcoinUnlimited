@@ -132,11 +132,12 @@ public:
 
     static std::vector<uint64_t> DecodeRank(std::vector<unsigned char> encoded, size_t nItems, uint16_t nBitsPerItem);
 
-    uint64_t GetFilterSerializationSize() { 
+    uint64_t GetFilterSerializationSize()
+    {
         if (computeOptimized)
-            return ::GetSerializeSize(*pFastFilter, SER_NETWORK, PROTOCOL_VERSION); 
+            return ::GetSerializeSize(*pFastFilter, SER_NETWORK, PROTOCOL_VERSION);
         else
-            return ::GetSerializeSize(*pSetFilter, SER_NETWORK, PROTOCOL_VERSION); 
+            return ::GetSerializeSize(*pSetFilter, SER_NETWORK, PROTOCOL_VERSION);
     }
     uint64_t GetIbltSerializationSize() { return ::GetSerializeSize(*pSetIblt, SER_NETWORK, PROTOCOL_VERSION); }
     uint64_t GetRankSerializationSize() { return ::GetSerializeSize(encodedRank, SER_NETWORK, PROTOCOL_VERSION); }
