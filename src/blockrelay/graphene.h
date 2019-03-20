@@ -69,7 +69,10 @@ public:
         uint64_t _version,
         bool _computeOptimized);
     CGrapheneBlock() : shorttxidk0(0), shorttxidk1(0), pGrapheneSet(nullptr), version(2), computeOptimized(false) {}
-    CGrapheneBlock(uint64_t _version) : shorttxidk0(0), shorttxidk1(0), pGrapheneSet(nullptr), computeOptimized(false) { version = _version; }
+    CGrapheneBlock(uint64_t _version) : shorttxidk0(0), shorttxidk1(0), pGrapheneSet(nullptr), computeOptimized(false)
+    {
+        version = _version;
+    }
     ~CGrapheneBlock();
     // Create seeds for SipHash using the sipHashNonce generated in the constructor
     // Note that this must be called any time members header or sipHashNonce are changed
