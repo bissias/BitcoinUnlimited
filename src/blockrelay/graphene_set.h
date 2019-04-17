@@ -16,19 +16,23 @@
 
 #include <cmath>
 #include <numeric>
+#include <iostream>
 
 #define LN2SQUARED 0.4804530139182014246671025263266649717305529515945455
 
 const uint8_t FILTER_CELL_SIZE = 1;
-const uint8_t IBLT_CELL_SIZE = 17;
+const uint8_t IBLT_FIXED_CELL_SIZE = 13;
 const uint32_t LARGE_MEM_POOL_SIZE = 10000000;
 const float FILTER_FPR_MAX = 0.999;
 const uint8_t IBLT_CELL_MINIMUM = 2;
 const std::vector<uint8_t> IBLT_NULL_VALUE = {};
 const unsigned char WORD_BITS = 8;
 const uint16_t APPROX_ITEMS_THRESH = 600;
+const uint16_t APPROX_ITEMS_THRESH_NO_CHECK = 500;
 const uint8_t APPROX_EXCESS_RATE = 4;
 const float IBLT_DEFAULT_OVERHEAD = 1.5;
+const float UNCHECKED_ERROR_TOL = 0.001;
+const uint8_t MAX_CHECKSUM_BITS = 32;
 
 
 class CGrapheneSet
@@ -44,6 +48,8 @@ private:
     CBloomFilter *pSetFilter;
     CVariableFastFilter *pFastFilter;
     CIblt *pSetIblt;
+    // IBLT without checksum
+    CIbltNoCheck *pSetIbltNoCheck;
 
     static const uint8_t SHORTTXIDS_LENGTH = 8;
 
@@ -61,12 +67,12 @@ public:
     // The default constructor is for 2-phase construction via deserialization
     CGrapheneSet()
         : ordered(false), nReceiverUniverseItems(0), shorttxidk0(0), shorttxidk1(0), version(1), ibltSalt(0),
-          computeOptimized(false), pSetFilter(nullptr), pFastFilter(nullptr), pSetIblt(nullptr)
+          computeOptimized(false), pSetFilter(nullptr), pFastFilter(nullptr), pSetIblt(nullptr), pSetIbltNoCheck(nullptr)
     {
     }
     CGrapheneSet(uint64_t _version)
         : ordered(false), nReceiverUniverseItems(0), shorttxidk0(0), shorttxidk1(0), ibltSalt(0),
-          computeOptimized(false), pSetFilter(nullptr), pFastFilter(nullptr), pSetIblt(nullptr)
+          computeOptimized(false), pSetFilter(nullptr), pFastFilter(nullptr), pSetIblt(nullptr), pSetIbltNoCheck(nullptr)
     {
         version = _version;
     }
@@ -102,7 +108,7 @@ public:
      * For details see
      * https://github.com/bissias/graphene-experiments/blob/master/jupyter/graphene_size_optimization.ipynb
      */
-    double ApproxOptimalSymDiff(uint64_t nBlockTxs);
+    double ApproxOptimalSymDiff(uint64_t nBlockTxs, uint8_t nChecksumBits = MAX_CHECKSUM_BITS);
 
     /* Brute force search for optimal symmetric difference between block txs and receiver
      * mempool txs passing though filter to use for IBLT.
@@ -116,7 +122,8 @@ public:
     double BruteForceSymDiff(uint64_t nBlockTxs,
         uint64_t nReceiverPoolTx,
         uint64_t nReceiverExcessTxs,
-        uint64_t nReceiverMissingTxs);
+        uint64_t nReceiverMissingTxs,
+        uint8_t nChecksumBits = MAX_CHECKSUM_BITS);
 
     // Pass the transaction hashes that the local machine has to reconcile with the remote and return a list
     // of cheap hashes in the block in the correct order
@@ -126,11 +133,19 @@ public:
     // return a list of cheap hashes in the block in the correct order
     std::vector<uint64_t> Reconcile(const std::map<uint64_t, uint256> &mapCheapHashes);
 
-    std::vector<uint64_t> Reconcile(std::set<uint64_t> &receiverSet, const CIblt &localIblt);
+    std::vector<uint64_t> Reconcile(std::set<uint64_t> &receiverSet, const CIblt &localIblt, const CIbltNoCheck &localIbltNoCheck);
 
     static std::vector<unsigned char> EncodeRank(std::vector<uint64_t> items, uint16_t nBitsPerItem);
 
     static std::vector<uint64_t> DecodeRank(std::vector<unsigned char> encoded, size_t nItems, uint16_t nBitsPerItem);
+
+    static double BloomFalsePositiveRate(double optSymDiff, uint64_t nReceiverExcessItems);
+
+    /* This method calculates the number of bits required for the IBLT cell checksum in order to
+     * achieve unchecked error tolerance fUncheckedErrorTol. Details can be found at the link below.
+     * https://github.com/bissias/graphene-experiments/blob/master/jupyter/min_checksum_IBLT.ipynb
+     */
+    static uint8_t NChecksumBits(size_t nIbltEntries, uint8_t nIbltHashFuncs, uint64_t nReceiverUniverseItems, float fBloomFPR, float fUncheckedErrorTol);
 
     uint64_t GetFilterSerializationSize()
     {
@@ -139,7 +154,12 @@ public:
         else
             return ::GetSerializeSize(*pSetFilter, SER_NETWORK, PROTOCOL_VERSION);
     }
-    uint64_t GetIbltSerializationSize() { return ::GetSerializeSize(*pSetIblt, SER_NETWORK, PROTOCOL_VERSION); }
+    uint64_t GetIbltSerializationSize() { 
+        if (version >= 4)
+            return ::GetSerializeSize(*pSetIbltNoCheck, SER_NETWORK, PROTOCOL_VERSION); 
+        else
+            return ::GetSerializeSize(*pSetIblt, SER_NETWORK, PROTOCOL_VERSION); 
+    }
     uint64_t GetRankSerializationSize() { return ::GetSerializeSize(encodedRank, SER_NETWORK, PROTOCOL_VERSION); }
     ~CGrapheneSet()
     {
@@ -159,6 +179,12 @@ public:
         {
             delete pSetIblt;
             pSetIblt = nullptr;
+        }
+
+        if (pSetIbltNoCheck)
+        {
+            delete pSetIbltNoCheck;
+            pSetIbltNoCheck = nullptr;
         }
     }
 
@@ -195,9 +221,20 @@ public:
 
             READWRITE(*pSetFilter);
         }
-        if (!pSetIblt)
-            pSetIblt = new CIblt();
-        READWRITE(*pSetIblt);
+        if (version >= 4)
+        {   
+            if (!pSetIbltNoCheck)
+                pSetIbltNoCheck = new CIbltNoCheck();
+            
+            READWRITE(*pSetIbltNoCheck);
+        }
+        else
+        {
+            if (!pSetIblt)
+                pSetIblt = new CIblt();
+
+            READWRITE(*pSetIblt);
+        }
     }
 };
 
