@@ -6,6 +6,7 @@
 #include "blockrelay/blockrelay_common.h"
 #include "blockrelay/compactblock.h"
 #include "blockrelay/graphene.h"
+#include "blockrelay/mempool_sync.h"
 #include "blockrelay/thinblock.h"
 #include "chain.h"
 #include "chainparams.h"
@@ -30,11 +31,13 @@
 #include "validation/validation.h"
 #include "validationinterface.h"
 #include "version.h"
+#include "xversionkeys.h"
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/mean.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/variance.hpp>
 #include <boost/lexical_cast.hpp>
+#include <chrono>
 #include <inttypes.h>
 #include <thread>
 
@@ -1188,6 +1191,25 @@ void CRequestManager::FindNextBlocksToDownload(CNode *node, unsigned int count, 
                 }
             }
         }
+    }
+}
+
+void CRequestManager::RequestMempoolSync(CNode *pto)
+{
+    if ((mempoolSyncInFlight.count(pto) == 0 || std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-mempoolSyncInFlight[pto]).count() > MEMPOOLSYNC_FREQ_US) && pto->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC))
+    {
+        // Similar to Graphene, receiver must send CMempoolInfo
+        CInv inv;
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+
+        inv.type = MSG_MEMPOOLSYNC;
+        CMemPoolInfo receiverMemPoolInfo = GetGrapheneMempoolInfo();
+        ss << inv;
+        ss << receiverMemPoolInfo;
+
+        mempoolSyncInFlight[pto] = std::chrono::high_resolution_clock::now();
+        pto->PushMessage(NetMsgType::GET_MEMPOOLSYNC, ss);
+        LOG(GRAPHENE, "Requesting mempool synchronization from peer %s\n", pto->GetLogName());
     }
 }
 
