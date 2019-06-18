@@ -52,7 +52,7 @@ CGrapheneBlock::CGrapheneBlock(const CBlockRef pblock,
         FillShortTxIDSelector();
 
     std::vector<uint256> blockHashes;
-    for (auto &tx : pblock->vtx)
+    for (const auto &tx : *pblock)
     {
         blockHashes.push_back(tx->GetHash());
 
@@ -291,7 +291,7 @@ bool CRequestGrapheneBlockTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         }
         else
         {
-            for (auto &tx : block.vtx)
+            for (const auto &tx : block)
             {
                 uint64_t cheapHash = GetShortID(
                     pfrom->gr_shorttxidk0, pfrom->gr_shorttxidk1, tx->GetHash(), NegotiateGrapheneVersion(pfrom));
@@ -596,7 +596,7 @@ bool CGrapheneBlock::process(CNode *pfrom, std::string strCommand, std::shared_p
 
     this->nWaitingFor = missingCount;
     LOG(GRAPHENE, "Graphene block waiting for: %d, unnecessary: %d, total txns: %d received txns: %d\n",
-        this->nWaitingFor, unnecessaryCount, pblock->vtx.size(), grapheneBlock->mapMissingTx.size());
+        this->nWaitingFor, unnecessaryCount, pblock->numTransactions(), grapheneBlock->mapMissingTx.size());
 
     // If there are any missing hashes or transactions then we request them here.
     // This must be done outside of the mempool.cs lock or may deadlock.
@@ -757,7 +757,7 @@ static bool ReconstructBlock(CNode *pfrom,
         }
 
         // Add this transaction. If the tx is null we still add it as a placeholder to keep the correct ordering.
-        pblock->vtx.emplace_back(ptx);
+        pblock->add(ptx);
     }
     // Now that we've rebuild the block successfully we can set the XVal flag which is used in
     // ConnectBlock() to determine which if any inputs we can skip the checking of inputs.
@@ -1231,8 +1231,7 @@ void SendGrapheneBlock(CBlockRef pblock, CNode *pfrom, const CInv &inv, const CM
         try
         {
             uint64_t nSenderMempoolPlusBlock =
-                GetGrapheneMempoolInfo().nTx + pblock->vtx.size() - 1; // exclude coinbase
-
+                GetGrapheneMempoolInfo().nTx + pblock->numTransactions() - 1; // exclude coinbase
             CGrapheneBlock grapheneBlock(pblock, mempoolinfo.nTx, nSenderMempoolPlusBlock,
                 NegotiateGrapheneVersion(pfrom), NegotiateFastFilterSupport(pfrom));
 
