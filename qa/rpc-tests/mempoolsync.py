@@ -9,7 +9,7 @@ from test_framework.util import *
 import time
 
 
-class GrapheneBlockTest(BitcoinTestFramework):
+class MempoolSyncTest(BitcoinTestFramework):
     expected_stats = {'enabled', 
                       'filter', 
                       'graphene_additional_tx_size', 
@@ -108,11 +108,9 @@ class GrapheneBlockTest(BitcoinTestFramework):
         for i in range(10):
             self.nodes[2].sendtoaddress(self.nodes[2].getnewaddress(), Decimal("10"))
 
-        time.sleep(5)
-
-        print('node 0', len(self.nodes[0].getrawmempool()))        
-        print('node 1', len(self.nodes[1].getrawmempool()))        
-        print('node 2', len(self.nodes[2].getrawmempool()))        
+        waitFor(5, lambda: len(self.nodes[0].getrawmempool()) == 30)
+        waitFor(5, lambda: len(self.nodes[1].getrawmempool()) == 30)
+        waitFor(5, lambda: len(self.nodes[2].getrawmempool()) == 30)
 
 if __name__ == '__main__':
-    GrapheneBlockTest().main()
+    MempoolSyncTest().main()
