@@ -31,11 +31,11 @@ class CMempoolSyncInfo
 {
 public:
     uint64_t nTxInMempool;
-    uint64_t nMempoolTxMax;
+    uint64_t nRemainingMempoolBytes;
     uint64_t seed;
 
 public:
-    CMempoolSyncInfo(uint64_t nTxInMempool, uint64_t nMempoolTxMax, uint64_t seed);
+    CMempoolSyncInfo(uint64_t nTxInMempool, uint64_t nRemainingMempoolBytes, uint64_t seed);
     CMempoolSyncInfo();
 
     ADD_SERIALIZE_METHODS;
@@ -44,7 +44,7 @@ public:
     inline void SerializationOp(Stream &s, Operation ser_action)
     {
         READWRITE(nTxInMempool);
-        READWRITE(nMempoolTxMax);
+        READWRITE(nRemainingMempoolBytes);
         READWRITE(seed);
     }
 };

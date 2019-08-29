@@ -14,14 +14,14 @@ extern CTxMemPool mempool;
 extern CTweak<uint64_t> mempoolSyncMinVersionSupported;
 extern CTweak<uint64_t> mempoolSyncMaxVersionSupported;
 
-CMempoolSyncInfo::CMempoolSyncInfo(uint64_t _nTxInMempool, uint64_t _nMempoolTxMax, uint64_t _seed)
-    : nTxInMempool(_nTxInMempool), nMempoolTxMax(_nMempoolTxMax), seed(_seed)
+CMempoolSyncInfo::CMempoolSyncInfo(uint64_t _nTxInMempool, uint64_t _nRemainingMempoolBytes, uint64_t _seed)
+    : nTxInMempool(_nTxInMempool), nRemainingMempoolBytes(_nRemainingMempoolBytes), seed(_seed)
 {
 }
 CMempoolSyncInfo::CMempoolSyncInfo()
 {
     this->nTxInMempool = 0;
-    this->nMempoolTxMax = 0;
+    this->nRemainingMempoolBytes = 0;
     this->seed = 0;
 }
 
@@ -268,7 +268,16 @@ CMempoolSyncInfo GetMempoolSyncInfo()
     uint64_t nMempoolMaxTxBytes = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
     uint64_t seed = GetRand(std::numeric_limits<uint64_t>::max());
 
-    return CMempoolSyncInfo(nTxInMempool, nMempoolMaxTxBytes, seed);
+    uint64_t nRemainingMempoolTxBytes = nMempoolMaxTxBytes;
+    {
+        READLOCK(mempool.cs);
+        for (const CTxMemPoolEntry &e : mempool.mapTx)
+        {
+            nRemainingMempoolTxBytes += e.GetTx().GetTxSize();
+        }
+    }
+
+    return CMempoolSyncInfo(nTxInMempool, nRemainingMempoolTxBytes, seed);
 }
 
 uint64_t NegotiateMempoolSyncVersion(CNode *pfrom)
