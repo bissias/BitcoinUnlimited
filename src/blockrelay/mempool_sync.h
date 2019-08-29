@@ -16,16 +16,16 @@ const uint64_t MEMPOOL_SYNC_MAX_VERSION_SUPPORTED = 0;
 // arbitrary constants used for SipHash in CGrapheneSet
 const uint64_t SHORTTXIDK0 = 7;
 const uint64_t SHORTTXIDK1 = 11;
-// arbitrary entropy passed to CGrapheneSet an used for IBLT 
+// arbitrary entropy passed to CGrapheneSet an used for IBLT
 const uint32_t IBLT_ENTROPY = 13;
 // any value greater than 2 will use SipHash
 const uint64_t SHORT_ID_VERSION = 2;
 // frequency of synchronization (per peer) in milliseconds
-const uint64_t MEMPOOLSYNC_FREQ_US = 3*1e6;
+const uint64_t MEMPOOLSYNC_FREQ_US = 3 * 1e6;
 // Use CVariableFastFilter if true, otherwise use CBloomFilter
 const bool COMPUTE_OPTIMIZED = true;
 
-extern std::map<CNode*, std::chrono::time_point<std::chrono::high_resolution_clock>> mempoolSyncInFlight;
+extern std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncInFlight;
 
 class CMempoolSyncInfo
 {
@@ -65,11 +65,7 @@ public:
     CMempoolSync(uint64_t _version) : pGrapheneSet(nullptr) {}
     ~CMempoolSync();
 
-    static inline uint64_t GetGrapheneSetVersion(uint64_t grapheneBlockVersion)
-    {
-        return 4;
-    }
-
+    static inline uint64_t GetGrapheneSetVersion(uint64_t grapheneBlockVersion) { return 4; }
     /**
      * Handle an incoming MempoolSync
      * @param[in]  vRecv        The raw binary message
@@ -106,7 +102,8 @@ public:
     std::set<uint64_t> setCheapHashesToRequest; // map of missing transactions
 
 public:
-    CRequestMempoolSyncTx(std::set<uint64_t> &_setCheapHashesToRequest) : setCheapHashesToRequest(_setCheapHashesToRequest) {};
+    CRequestMempoolSyncTx(std::set<uint64_t> &_setCheapHashesToRequest)
+        : setCheapHashesToRequest(_setCheapHashesToRequest){};
     CRequestMempoolSyncTx() {}
     /**
      * Handle an incoming request for missing graphene block transactions
@@ -125,13 +122,14 @@ public:
     }
 };
 
-class CMempoolSyncTx {
+class CMempoolSyncTx
+{
 public:
-    std::vector<CTransaction> vTx; 
+    std::vector<CTransaction> vTx;
 
 public:
-    CMempoolSyncTx(std::vector<CTransaction> &_vTx) : vTx(_vTx) {};
-    CMempoolSyncTx() {};
+    CMempoolSyncTx(std::vector<CTransaction> &_vTx) : vTx(_vTx){};
+    CMempoolSyncTx(){};
 
     /**
      * Handle receiving a list of missing mempool sync transactions from a prior request

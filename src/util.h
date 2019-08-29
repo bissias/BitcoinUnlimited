@@ -223,7 +223,7 @@ To add a new log category:
             {REQ, "req"}, {BLOOM, "bloom"}, {LCK, "lck"}, {PROXY, "proxy"}, {DBASE, "dbase"},                   \
             {SELECTCOINS, "selectcoins"}, {ESTIMATEFEE, "estimatefee"}, {QT, "qt"}, {IBD, "ibd"},               \
             {GRAPHENE, "graphene"}, {RESPEND, "respend"}, {WB, "weakblocks"}, {CMPCT, "cmpctblock"},            \
-            {ELECTRUM, "electrum"}, {MPOOLSYNC, "mempoolsync"},                                               \
+            {ELECTRUM, "electrum"}, {MPOOLSYNC, "mempoolsync"},                                                 \
         {                                                                                                       \
             ZMQ, "zmq"                                                                                          \
         }                                                                                                       \

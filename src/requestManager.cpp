@@ -1196,7 +1196,11 @@ void CRequestManager::FindNextBlocksToDownload(CNode *node, unsigned int count, 
 
 void CRequestManager::RequestMempoolSync(CNode *pto)
 {
-    if ((mempoolSyncInFlight.count(pto) == 0 || std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now()-mempoolSyncInFlight[pto]).count() > MEMPOOLSYNC_FREQ_US) && pto->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC))
+    if ((mempoolSyncInFlight.count(pto) == 0 ||
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::high_resolution_clock::now() - mempoolSyncInFlight[pto])
+                    .count() > MEMPOOLSYNC_FREQ_US) &&
+        pto->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC))
     {
         // Similar to Graphene, receiver must send CMempoolInfo
         CInv inv;

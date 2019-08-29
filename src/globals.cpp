@@ -402,8 +402,7 @@ CTweak<uint64_t> grapheneFastFilterCompatibility("net.grapheneFastFilterCompatib
     "Support fast Bloom filter: 0 - either, 1 - fast only, 2 - regular only (default: either)",
     GRAPHENE_FAST_FILTER_SUPPORT);
 
-CTweak<bool> syncMempoolWithPeers("net.syncMempoolWithPeers",
-    "Synchronize mempool with peers", false);
+CTweak<bool> syncMempoolWithPeers("net.syncMempoolWithPeers", "Synchronize mempool with peers", false);
 
 /** This setting specifies the minimum supported mempool sync version (inclusive).
  *  The actual version used will be negotiated between sender and receiver.
@@ -476,7 +475,7 @@ CThinBlockData thindata;
 CGrapheneBlockData graphenedata;
 CCompactBlockData compactdata;
 ThinTypeRelay thinrelay;
-std::map<CNode*, std::chrono::time_point<std::chrono::high_resolution_clock>> mempoolSyncInFlight;
+std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncInFlight;
 
 // Are we shutting down. Replaces boost interrupts.
 std::atomic<bool> shutdown_threads{false};

@@ -14,29 +14,35 @@ extern CTxMemPool mempool;
 extern CTweak<uint64_t> mempoolSyncMinVersionSupported;
 extern CTweak<uint64_t> mempoolSyncMaxVersionSupported;
 
-CMempoolSyncInfo::CMempoolSyncInfo(uint64_t _nTxInMempool, uint64_t _nMempoolTxMax, uint64_t _seed) : nTxInMempool(_nTxInMempool), nMempoolTxMax(_nMempoolTxMax), seed(_seed) {}
-CMempoolSyncInfo::CMempoolSyncInfo() { 
-    this->nTxInMempool = 0; 
+CMempoolSyncInfo::CMempoolSyncInfo(uint64_t _nTxInMempool, uint64_t _nMempoolTxMax, uint64_t _seed)
+    : nTxInMempool(_nTxInMempool), nMempoolTxMax(_nMempoolTxMax), seed(_seed)
+{
+}
+CMempoolSyncInfo::CMempoolSyncInfo()
+{
+    this->nTxInMempool = 0;
     this->nMempoolTxMax = 0;
     this->seed = 0;
 }
 
-CMempoolSync::CMempoolSync(std::vector<uint256> mempoolTxHashes, uint64_t nReceiverMemPoolTx, uint64_t nSenderMempoolPlusBlock, uint64_t _version) : version(_version), nSenderMempoolTxs(0)
+CMempoolSync::CMempoolSync(std::vector<uint256> mempoolTxHashes,
+    uint64_t nReceiverMemPoolTx,
+    uint64_t nSenderMempoolPlusBlock,
+    uint64_t _version)
+    : version(_version), nSenderMempoolTxs(0)
 {
     uint64_t grapheneSetVersion = CMempoolSync::GetGrapheneSetVersion(version);
     nSenderMempoolTxs = mempoolTxHashes.size();
 
     // TODO: consider making SHORTTXIDK0, SHORTTXIDK1, and IBLT_ENTROPY random
-    pGrapheneSet =
-        std::make_shared<CGrapheneSet>(CGrapheneSet(nReceiverMemPoolTx, nSenderMempoolPlusBlock, mempoolTxHashes,
-            SHORTTXIDK0, SHORTTXIDK1, grapheneSetVersion, IBLT_ENTROPY, COMPUTE_OPTIMIZED, false));
+    pGrapheneSet = std::make_shared<CGrapheneSet>(CGrapheneSet(nReceiverMemPoolTx, nSenderMempoolPlusBlock,
+        mempoolTxHashes, SHORTTXIDK0, SHORTTXIDK1, grapheneSetVersion, IBLT_ENTROPY, COMPUTE_OPTIMIZED, false));
 }
 
 CMempoolSync::~CMempoolSync() { pGrapheneSet = nullptr; }
-
 bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
 {
-    LOG(MPOOLSYNC, "Handling mempool sync request from peer %s\n", pfrom->GetLogName()); 
+    LOG(MPOOLSYNC, "Handling mempool sync request from peer %s\n", pfrom->GetLogName());
     CMempoolSyncInfo mempoolinfo;
     CInv inv;
     vRecv >> inv >> mempoolinfo;
@@ -49,7 +55,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
     }
 
     // TODO: Add some sort of DoS detection
-    
+
     if (inv.type == MSG_MEMPOOLSYNC)
     {
         std::vector<uint256> mempoolTxHashes;
@@ -57,12 +63,13 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
 
         if (mempoolTxHashes.size() == 0)
         {
-            LOG(MPOOLSYNC, "mempool is empty; aborting mempool sync with peer %s\n", pfrom->GetLogName()); 
+            LOG(MPOOLSYNC, "mempool is empty; aborting mempool sync with peer %s\n", pfrom->GetLogName());
             return true;
         }
 
         uint64_t nBothMempools = mempoolTxHashes.size() + mempoolinfo.nTxInMempool;
-        CMempoolSync mempoolSync(mempoolTxHashes, mempoolinfo.nTxInMempool, nBothMempools, NegotiateMempoolSyncVersion(pfrom));
+        CMempoolSync mempoolSync(
+            mempoolTxHashes, mempoolinfo.nTxInMempool, nBothMempools, NegotiateMempoolSyncVersion(pfrom));
 
         pfrom->PushMessage(NetMsgType::MEMPOOLSYNC, mempoolSync);
         LOG(MPOOLSYNC, "Sent mempool sync to peer %s using version %d\n", pfrom->GetLogName(), mempoolSync.version);
@@ -130,17 +137,20 @@ bool CMempoolSync::process(CNode *pfrom)
     }
     catch (const std::runtime_error &e)
     {
-        LOG(MPOOLSYNC, "Mempool sync failed for peer %s. Graphene set could not be reconciled: %s\n", pfrom->GetLogName(), e.what());
+        LOG(MPOOLSYNC, "Mempool sync failed for peer %s. Graphene set could not be reconciled: %s\n",
+            pfrom->GetLogName(), e.what());
     }
 
-    LOG(MPOOLSYNC, "Mempool sync received: %d total txns, waiting for: %d from peer %s\n", nSenderMempoolTxs, setHashesToRequest.size(), pfrom->GetLogName());
+    LOG(MPOOLSYNC, "Mempool sync received: %d total txns, waiting for: %d from peer %s\n", nSenderMempoolTxs,
+        setHashesToRequest.size(), pfrom->GetLogName());
 
     // If there are any missing hashes or transactions then we request them here.
     if (setHashesToRequest.size() > 0)
     {
         CRequestMempoolSyncTx mempoolSyncTx(setHashesToRequest);
         pfrom->PushMessage(NetMsgType::GET_MEMPOOLSYNCTX, mempoolSyncTx);
-        LOG(MPOOLSYNC, "Requesting to sync %d missing transactions from %s\n", setHashesToRequest.size(), pfrom->GetLogName());
+        LOG(MPOOLSYNC, "Requesting to sync %d missing transactions from %s\n", setHashesToRequest.size(),
+            pfrom->GetLogName());
 
         return true;
     }
@@ -165,7 +175,8 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
 
     // TODO: Add some sort of DoS detection
 
-    LOG(MPOOLSYNC, "Received getmemsynctx from peer=%s requesting %d transactions\n", pfrom->GetLogName(), reqMempoolSyncTx.setCheapHashesToRequest.size());
+    LOG(MPOOLSYNC, "Received getmemsynctx from peer=%s requesting %d transactions\n", pfrom->GetLogName(),
+        reqMempoolSyncTx.setCheapHashesToRequest.size());
 
     std::vector<uint256> mempoolTxHashes;
     GetMempoolTxHashes(mempoolTxHashes);
@@ -205,7 +216,8 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         return error("Received memsynctx from peer %s but mempool sync is not in progress", pfrom->GetLogName());
     }
 
-    LOG(MPOOLSYNC, "Received memsynctx from peer=%s; adding %d transactions to mempool\n", pfrom->GetLogName(), mempoolSyncTx.vTx.size());
+    LOG(MPOOLSYNC, "Received memsynctx from peer=%s; adding %d transactions to mempool\n", pfrom->GetLogName(),
+        mempoolSyncTx.vTx.size());
 
     size_t idx = 0;
     for (const CTransaction &tx : mempoolSyncTx.vTx)

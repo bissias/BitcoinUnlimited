@@ -46,7 +46,7 @@ extern unsigned int blkReqRetryInterval;
 extern unsigned int MIN_BLK_REQUEST_RETRY_INTERVAL;
 static const unsigned int DEFAULT_MIN_BLK_REQUEST_RETRY_INTERVAL = 5 * 1000 * 1000;
 // Which peers have mempool synchronization in-flight?
-extern std::map<CNode*, std::chrono::time_point<std::chrono::high_resolution_clock>> mempoolSyncInFlight;
+extern std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncInFlight;
 
 class CNode;
 
@@ -236,7 +236,7 @@ public:
     // This gets called from RequestNextBlocksToDownload
     void FindNextBlocksToDownload(CNode *node, unsigned int count, std::vector<CBlockIndex *> &vBlocks);
 
-    // Request to synchronize mempool with peer pto 
+    // Request to synchronize mempool with peer pto
     void RequestMempoolSync(CNode *pto);
 
     // Returns a bool indicating whether we requested this block.
