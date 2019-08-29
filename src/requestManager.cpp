@@ -1203,7 +1203,7 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 
         inv.type = MSG_MEMPOOLSYNC;
-        CMemPoolInfo receiverMemPoolInfo = GetGrapheneMempoolInfo();
+        CMempoolSyncInfo receiverMemPoolInfo = GetMempoolSyncInfo();
         ss << inv;
         ss << receiverMemPoolInfo;
 

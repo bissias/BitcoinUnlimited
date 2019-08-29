@@ -14,6 +14,13 @@ extern CTxMemPool mempool;
 extern CTweak<uint64_t> mempoolSyncMinVersionSupported;
 extern CTweak<uint64_t> mempoolSyncMaxVersionSupported;
 
+CMempoolSyncInfo::CMempoolSyncInfo(uint64_t _nTxInMempool, uint64_t _nMempoolTxMax, uint64_t _seed) : nTxInMempool(_nTxInMempool), nMempoolTxMax(_nMempoolTxMax), seed(_seed) {}
+CMempoolSyncInfo::CMempoolSyncInfo() { 
+    this->nTxInMempool = 0; 
+    this->nMempoolTxMax = 0;
+    this->seed = 0;
+}
+
 CMempoolSync::CMempoolSync(std::vector<uint256> mempoolTxHashes, uint64_t nReceiverMemPoolTx, uint64_t nSenderMempoolPlusBlock, uint64_t _version) : version(_version), nSenderMempoolTxs(0)
 {
     uint64_t grapheneSetVersion = CMempoolSync::GetGrapheneSetVersion(version);
@@ -30,7 +37,7 @@ CMempoolSync::~CMempoolSync() { pGrapheneSet = nullptr; }
 bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
 {
     LOG(MPOOLSYNC, "Handling mempool sync request from peer %s\n", pfrom->GetLogName()); 
-    CMemPoolInfo mempoolinfo;
+    CMempoolSyncInfo mempoolinfo;
     CInv inv;
     vRecv >> inv >> mempoolinfo;
 
@@ -54,8 +61,8 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
             return true;
         }
 
-        uint64_t nBothMempools = mempoolTxHashes.size() + mempoolinfo.nTx;
-        CMempoolSync mempoolSync(mempoolTxHashes, mempoolinfo.nTx, nBothMempools, NegotiateMempoolSyncVersion(pfrom));
+        uint64_t nBothMempools = mempoolTxHashes.size() + mempoolinfo.nTxInMempool;
+        CMempoolSync mempoolSync(mempoolTxHashes, mempoolinfo.nTxInMempool, nBothMempools, NegotiateMempoolSyncVersion(pfrom));
 
         pfrom->PushMessage(NetMsgType::MEMPOOLSYNC, mempoolSync);
         LOG(MPOOLSYNC, "Sent mempool sync to peer %s using version %d\n", pfrom->GetLogName(), mempoolSync.version);
@@ -233,6 +240,23 @@ void GetMempoolTxHashes(std::vector<uint256> &mempoolTxHashes)
     {
         mempoolTxHashes.push_back(hash);
     }
+}
+
+CMempoolSyncInfo GetMempoolSyncInfo()
+{
+    // We need the number of transactions in the mempool and orphanpools but also the number
+    // in the txCommitQ that have been processed and valid, and which will be in the mempool shortly.
+    uint64_t nCommitQ = 0;
+    {
+        boost::unique_lock<boost::mutex> lock(csCommitQ);
+        nCommitQ = txCommitQ->size();
+    }
+
+    uint64_t nTxInMempool = mempool.size() + orphanpool.GetOrphanPoolSize() + nCommitQ;
+    uint64_t nMempoolMaxTxBytes = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
+    uint64_t seed = GetRand(std::numeric_limits<uint64_t>::max());
+
+    return CMempoolSyncInfo(nTxInMempool, nMempoolMaxTxBytes, seed);
 }
 
 uint64_t NegotiateMempoolSyncVersion(CNode *pfrom)

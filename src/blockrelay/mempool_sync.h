@@ -27,6 +27,28 @@ const bool COMPUTE_OPTIMIZED = true;
 
 extern std::map<CNode*, std::chrono::time_point<std::chrono::high_resolution_clock>> mempoolSyncInFlight;
 
+class CMempoolSyncInfo
+{
+public:
+    uint64_t nTxInMempool;
+    uint64_t nMempoolTxMax;
+    uint64_t seed;
+
+public:
+    CMempoolSyncInfo(uint64_t nTxInMempool, uint64_t nMempoolTxMax, uint64_t seed);
+    CMempoolSyncInfo();
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream &s, Operation ser_action)
+    {
+        READWRITE(nTxInMempool);
+        READWRITE(nMempoolTxMax);
+        READWRITE(seed);
+    }
+};
+
 class CMempoolSync
 {
 public:
@@ -130,6 +152,7 @@ public:
 
 bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom);
 void GetMempoolTxHashes(std::vector<uint256> &mempoolTxHashes);
+CMempoolSyncInfo GetMempoolSyncInfo();
 uint64_t NegotiateMempoolSyncVersion(CNode *pfrom);
 
 #endif // BITCOIN_MEMPOOL_SYNC_H
