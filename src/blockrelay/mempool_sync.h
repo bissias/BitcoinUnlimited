@@ -33,9 +33,10 @@ public:
     uint64_t nTxInMempool;
     uint64_t nRemainingMempoolBytes;
     uint64_t seed;
+    uint64_t nSatoshiPerK;
 
 public:
-    CMempoolSyncInfo(uint64_t nTxInMempool, uint64_t nRemainingMempoolBytes, uint64_t seed);
+    CMempoolSyncInfo(uint64_t nTxInMempool, uint64_t nRemainingMempoolBytes, uint64_t seed, uint64_t nSatoshiPerK);
     CMempoolSyncInfo();
 
     ADD_SERIALIZE_METHODS;
@@ -46,6 +47,7 @@ public:
         READWRITE(nTxInMempool);
         READWRITE(nRemainingMempoolBytes);
         READWRITE(seed);
+        READWRITE(nSatoshiPerK);
     }
 };
 

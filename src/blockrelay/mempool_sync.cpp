@@ -14,8 +14,12 @@ extern CTxMemPool mempool;
 extern CTweak<uint64_t> mempoolSyncMinVersionSupported;
 extern CTweak<uint64_t> mempoolSyncMaxVersionSupported;
 
-CMempoolSyncInfo::CMempoolSyncInfo(uint64_t _nTxInMempool, uint64_t _nRemainingMempoolBytes, uint64_t _seed)
-    : nTxInMempool(_nTxInMempool), nRemainingMempoolBytes(_nRemainingMempoolBytes), seed(_seed)
+CMempoolSyncInfo::CMempoolSyncInfo(uint64_t _nTxInMempool,
+    uint64_t _nRemainingMempoolBytes,
+    uint64_t _seed,
+    uint64_t _nSatoshiPerK)
+    : nTxInMempool(_nTxInMempool), nRemainingMempoolBytes(_nRemainingMempoolBytes), seed(_seed),
+      nSatoshiPerK(_nSatoshiPerK)
 {
 }
 CMempoolSyncInfo::CMempoolSyncInfo()
@@ -23,6 +27,7 @@ CMempoolSyncInfo::CMempoolSyncInfo()
     this->nTxInMempool = 0;
     this->nRemainingMempoolBytes = 0;
     this->seed = 0;
+    this->nSatoshiPerK = 0;
 }
 
 CMempoolSync::CMempoolSync(std::vector<uint256> mempoolTxHashes,
@@ -59,7 +64,27 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
     if (inv.type == MSG_MEMPOOLSYNC)
     {
         std::vector<uint256> mempoolTxHashes;
-        GetMempoolTxHashes(mempoolTxHashes);
+        // cycle through mempool txs in order of ancestor_score
+        {
+            READLOCK(mempool.cs);
+
+            int64_t nRemainingMempoolBytes = mempoolinfo.nRemainingMempoolBytes;
+            typename CTxMemPool::indexed_transaction_set::index<ancestor_score>::type::iterator it =
+                mempool.mapTx.get<ancestor_score>().begin();
+            for (; it != mempool.mapTx.get<ancestor_score>().end() && nRemainingMempoolBytes > 0; ++it)
+            {
+                uint64_t nTxSize = it->GetTx().GetTxSize();
+                uint64_t nFee = it->GetFee();
+                uint64_t nSatoshiPerK = (uint64_t)(1000 * nFee / (double)nTxSize);
+
+                // Skip tx if fee rate is too low
+                if (nSatoshiPerK < mempoolinfo.nSatoshiPerK)
+                    continue;
+
+                mempoolTxHashes.push_back(it->GetTx().GetHash());
+                nRemainingMempoolBytes -= nTxSize;
+            }
+        }
 
         if (mempoolTxHashes.size() == 0)
         {
@@ -267,6 +292,7 @@ CMempoolSyncInfo GetMempoolSyncInfo()
     uint64_t nTxInMempool = mempool.size() + orphanpool.GetOrphanPoolSize() + nCommitQ;
     uint64_t nMempoolMaxTxBytes = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
     uint64_t seed = GetRand(std::numeric_limits<uint64_t>::max());
+    uint64_t nSatoshiPerK = minRelayTxFee.GetFeePerK();
 
     uint64_t nRemainingMempoolTxBytes = nMempoolMaxTxBytes;
     {
@@ -277,7 +303,7 @@ CMempoolSyncInfo GetMempoolSyncInfo()
         }
     }
 
-    return CMempoolSyncInfo(nTxInMempool, nRemainingMempoolTxBytes, seed);
+    return CMempoolSyncInfo(nTxInMempool, nRemainingMempoolTxBytes, seed, nSatoshiPerK);
 }
 
 uint64_t NegotiateMempoolSyncVersion(CNode *pfrom)
