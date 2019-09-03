@@ -122,7 +122,7 @@ bool CMempoolSync::ReceiveMempoolSync(CDataStream &vRecv, CNode *pfrom, std::str
     LOG(MPOOLSYNC, "Received mempool sync from peer %s\n", pfrom->GetLogName());
 
     // Do not process unrequested mempool sync.
-    if (!(mempoolSyncInFlight.count(pfrom) == 1))
+    if (!(mempoolSyncRequested.count(pfrom) == 1))
     {
         dosMan.Misbehaving(pfrom, 10);
         return error("Received unrequested mempool sync from peer %s\n", pfrom->GetLogName());
@@ -235,7 +235,7 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     vRecv >> mempoolSyncTx;
 
     // Do not process unrequested memsynctx.
-    if (mempoolSyncInFlight.count(pfrom) == 0)
+    if (mempoolSyncRequested.count(pfrom) == 0)
     {
         dosMan.Misbehaving(pfrom, 10);
         return error("Received memsynctx from peer %s but mempool sync is not in progress", pfrom->GetLogName());

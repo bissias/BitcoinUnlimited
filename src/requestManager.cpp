@@ -1196,9 +1196,9 @@ void CRequestManager::FindNextBlocksToDownload(CNode *node, unsigned int count, 
 
 void CRequestManager::RequestMempoolSync(CNode *pto)
 {
-    if ((mempoolSyncInFlight.count(pto) == 0 ||
+    if ((mempoolSyncRequested.count(pto) == 0 ||
             std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::high_resolution_clock::now() - mempoolSyncInFlight[pto])
+                std::chrono::high_resolution_clock::now() - mempoolSyncRequested[pto])
                     .count() > MEMPOOLSYNC_FREQ_US) &&
         pto->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC))
     {
@@ -1211,7 +1211,7 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
         ss << inv;
         ss << receiverMemPoolInfo;
 
-        mempoolSyncInFlight[pto] = std::chrono::high_resolution_clock::now();
+        mempoolSyncRequested[pto] = std::chrono::high_resolution_clock::now();
         pto->PushMessage(NetMsgType::GET_MEMPOOLSYNC, ss);
         LOG(GRAPHENE, "Requesting mempool synchronization from peer %s\n", pto->GetLogName());
     }
