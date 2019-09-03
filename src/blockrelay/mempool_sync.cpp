@@ -19,32 +19,35 @@ extern CTweak<uint64_t> mempoolSyncMaxVersionSupported;
 
 CMempoolSyncInfo::CMempoolSyncInfo(uint64_t _nTxInMempool,
     uint64_t _nRemainingMempoolBytes,
-    uint64_t _seed,
+    uint64_t _shorttxidk0,
+    uint64_t _shorttxidk1,
     uint64_t _nSatoshiPerK)
-    : nTxInMempool(_nTxInMempool), nRemainingMempoolBytes(_nRemainingMempoolBytes), seed(_seed),
-      nSatoshiPerK(_nSatoshiPerK)
+    : nTxInMempool(_nTxInMempool), nRemainingMempoolBytes(_nRemainingMempoolBytes), shorttxidk0(_shorttxidk0),
+      shorttxidk1(_shorttxidk1), nSatoshiPerK(_nSatoshiPerK)
 {
 }
 CMempoolSyncInfo::CMempoolSyncInfo()
 {
     this->nTxInMempool = 0;
     this->nRemainingMempoolBytes = 0;
-    this->seed = 0;
+    this->shorttxidk0 = 0;
+    this->shorttxidk1 = 0;
     this->nSatoshiPerK = 0;
 }
 
 CMempoolSync::CMempoolSync(std::vector<uint256> mempoolTxHashes,
     uint64_t nReceiverMemPoolTx,
     uint64_t nSenderMempoolPlusBlock,
+    uint64_t shorttxidk0,
+    uint64_t shorttxidk1,
     uint64_t _version)
     : version(_version), nSenderMempoolTxs(0)
 {
     uint64_t grapheneSetVersion = CMempoolSync::GetGrapheneSetVersion(version);
     nSenderMempoolTxs = mempoolTxHashes.size();
 
-    // TODO: consider making SHORTTXIDK0, SHORTTXIDK1, and IBLT_ENTROPY random
     pGrapheneSet = std::make_shared<CGrapheneSet>(CGrapheneSet(nReceiverMemPoolTx, nSenderMempoolPlusBlock,
-        mempoolTxHashes, SHORTTXIDK0, SHORTTXIDK1, grapheneSetVersion, IBLT_ENTROPY, COMPUTE_OPTIMIZED, false));
+        mempoolTxHashes, shorttxidk0, shorttxidk1, grapheneSetVersion, IBLT_ENTROPY, COMPUTE_OPTIMIZED, false));
 }
 
 CMempoolSync::~CMempoolSync() { pGrapheneSet = nullptr; }
@@ -78,7 +81,8 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
             pfrom->GetLogName());
     }
 
-    mempoolSyncResponded[pfrom] = CMempoolSyncState();
+    mempoolSyncResponded[pfrom] =
+        CMempoolSyncState(std::chrono::high_resolution_clock::now(), mempoolinfo.shorttxidk0, mempoolinfo.shorttxidk1);
 
     if (inv.type == MSG_MEMPOOLSYNC)
     {
@@ -112,8 +116,8 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
         }
 
         uint64_t nBothMempools = mempoolTxHashes.size() + mempoolinfo.nTxInMempool;
-        CMempoolSync mempoolSync(
-            mempoolTxHashes, mempoolinfo.nTxInMempool, nBothMempools, NegotiateMempoolSyncVersion(pfrom));
+        CMempoolSync mempoolSync(mempoolTxHashes, mempoolinfo.nTxInMempool, nBothMempools, mempoolinfo.shorttxidk0,
+            mempoolinfo.shorttxidk1, NegotiateMempoolSyncVersion(pfrom));
 
         pfrom->PushMessage(NetMsgType::MEMPOOLSYNC, mempoolSync);
         LOG(MPOOLSYNC, "Sent mempool sync to peer %s using version %d\n", pfrom->GetLogName(), mempoolSync.version);
@@ -161,7 +165,8 @@ bool CMempoolSync::process(CNode *pfrom)
 
     for (const uint256 &hash : mempoolTxHashes)
     {
-        uint64_t cheapHash = GetShortID(SHORTTXIDK0, SHORTTXIDK1, hash, SHORT_ID_VERSION);
+        uint64_t cheapHash = GetShortID(
+            mempoolSyncRequested[pfrom].shorttxidk0, mempoolSyncRequested[pfrom].shorttxidk1, hash, SHORT_ID_VERSION);
         mapPartialTxHash.insert(std::make_pair(cheapHash, hash));
     }
 
@@ -234,7 +239,8 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     std::vector<CTransaction> vTx;
     for (auto &hash : mempoolTxHashes)
     {
-        uint64_t cheapHash = GetShortID(SHORTTXIDK0, SHORTTXIDK1, hash, SHORT_ID_VERSION);
+        uint64_t cheapHash = GetShortID(
+            mempoolSyncResponded[pfrom].shorttxidk0, mempoolSyncResponded[pfrom].shorttxidk1, hash, SHORT_ID_VERSION);
 
         if (reqMempoolSyncTx.setCheapHashesToRequest.count(cheapHash) == 0)
             continue;
@@ -314,8 +320,18 @@ CMempoolSyncInfo GetMempoolSyncInfo()
 
     uint64_t nTxInMempool = mempool.size() + orphanpool.GetOrphanPoolSize() + nCommitQ;
     uint64_t nMempoolMaxTxBytes = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
-    uint64_t seed = GetRand(std::numeric_limits<uint64_t>::max());
     uint64_t nSatoshiPerK = minRelayTxFee.GetFeePerK();
+
+    // Form SipHash keys
+    uint64_t seed = GetRand(std::numeric_limits<uint64_t>::max());
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << seed;
+    CSHA256 hasher;
+    hasher.Write((unsigned char *)&(*stream.begin()), stream.end() - stream.begin());
+    uint256 shorttxidhash;
+    hasher.Finalize(shorttxidhash.begin());
+    uint64_t shorttxidk0 = shorttxidhash.GetUint64(0);
+    uint64_t shorttxidk1 = shorttxidhash.GetUint64(1);
 
     uint64_t nRemainingMempoolTxBytes = nMempoolMaxTxBytes;
     {
@@ -326,7 +342,7 @@ CMempoolSyncInfo GetMempoolSyncInfo()
         }
     }
 
-    return CMempoolSyncInfo(nTxInMempool, nRemainingMempoolTxBytes, seed, nSatoshiPerK);
+    return CMempoolSyncInfo(nTxInMempool, nRemainingMempoolTxBytes, shorttxidk0, shorttxidk1, nSatoshiPerK);
 }
 
 uint64_t NegotiateMempoolSyncVersion(CNode *pfrom)

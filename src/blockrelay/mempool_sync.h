@@ -13,9 +13,6 @@
 
 const uint64_t MEMPOOL_SYNC_MIN_VERSION_SUPPORTED = 0;
 const uint64_t MEMPOOL_SYNC_MAX_VERSION_SUPPORTED = 0;
-// arbitrary constants used for SipHash in CGrapheneSet
-const uint64_t SHORTTXIDK0 = 7;
-const uint64_t SHORTTXIDK1 = 11;
 // arbitrary entropy passed to CGrapheneSet an used for IBLT
 const uint32_t IBLT_ENTROPY = 13;
 // any value greater than 2 will use SipHash
@@ -29,13 +26,17 @@ class CMempoolSyncState
 {
 public:
     std::chrono::time_point<std::chrono::high_resolution_clock> lastUpdated;
+    uint64_t shorttxidk0;
+    uint64_t shorttxidk1;
 
 public:
-    CMempoolSyncState(std::chrono::time_point<std::chrono::high_resolution_clock> _lastUpdated)
+    CMempoolSyncState(std::chrono::time_point<std::chrono::high_resolution_clock> _lastUpdated,
+        uint64_t _shorttxidk0,
+        uint64_t _shorttxidk1)
+        : lastUpdated(_lastUpdated), shorttxidk0(_shorttxidk0), shorttxidk1(_shorttxidk1)
     {
-        lastUpdated = _lastUpdated;
     }
-    CMempoolSyncState() { lastUpdated = std::chrono::high_resolution_clock::now(); }
+    CMempoolSyncState() : lastUpdated(std::chrono::high_resolution_clock::now()), shorttxidk0(0), shorttxidk1(0) {}
 };
 
 extern std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
@@ -46,11 +47,16 @@ class CMempoolSyncInfo
 public:
     uint64_t nTxInMempool;
     uint64_t nRemainingMempoolBytes;
-    uint64_t seed;
+    uint64_t shorttxidk0;
+    uint64_t shorttxidk1;
     uint64_t nSatoshiPerK;
 
 public:
-    CMempoolSyncInfo(uint64_t nTxInMempool, uint64_t nRemainingMempoolBytes, uint64_t seed, uint64_t nSatoshiPerK);
+    CMempoolSyncInfo(uint64_t nTxInMempool,
+        uint64_t nRemainingMempoolBytes,
+        uint64_t shorttxidk0,
+        uint64_t shorttxidk1,
+        uint64_t nSatoshiPerK);
     CMempoolSyncInfo();
 
     ADD_SERIALIZE_METHODS;
@@ -60,7 +66,8 @@ public:
     {
         READWRITE(nTxInMempool);
         READWRITE(nRemainingMempoolBytes);
-        READWRITE(seed);
+        READWRITE(shorttxidk0);
+        READWRITE(shorttxidk1);
         READWRITE(nSatoshiPerK);
     }
 };
@@ -76,6 +83,8 @@ public:
     CMempoolSync(std::vector<uint256> mempoolTxHashes,
         uint64_t nReceiverMemPoolTx,
         uint64_t nSenderMempoolPlusBlock,
+        uint64_t shorttxidk0,
+        uint64_t shorttxidk1,
         uint64_t _version);
     CMempoolSync() : pGrapheneSet(nullptr), version(0) {}
     CMempoolSync(uint64_t _version) : pGrapheneSet(nullptr) {}

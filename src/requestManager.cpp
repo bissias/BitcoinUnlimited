@@ -1211,7 +1211,8 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
         ss << inv;
         ss << receiverMemPoolInfo;
 
-        mempoolSyncRequested[pto] = CMempoolSyncState();
+        mempoolSyncRequested[pto] = CMempoolSyncState(std::chrono::high_resolution_clock::now(),
+            receiverMemPoolInfo.shorttxidk0, receiverMemPoolInfo.shorttxidk1);
         pto->PushMessage(NetMsgType::GET_MEMPOOLSYNC, ss);
         LOG(GRAPHENE, "Requesting mempool synchronization from peer %s\n", pto->GetLogName());
     }
