@@ -217,7 +217,11 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         return error("Incorrectly constructed getmemsynctx received.  Banning peer=%s", pfrom->GetLogName());
     }
 
-    // TODO: Add some sort of DoS detection
+    if (mempoolSyncResponded.count(pfrom) == 0)
+    {
+        dosMan.Misbehaving(pfrom, 10);
+        return error("Received getmemsynctx from peer %s but mempool sync is not in progress", pfrom->GetLogName());
+    }
 
     LOG(MPOOLSYNC, "Received getmemsynctx from peer=%s requesting %d transactions\n", pfrom->GetLogName(),
         reqMempoolSyncTx.setCheapHashesToRequest.size());
