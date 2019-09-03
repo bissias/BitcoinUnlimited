@@ -10,7 +10,10 @@
 #include "util.h"
 #include "xversionkeys.h"
 
+#include <chrono>
+
 extern CTxMemPool mempool;
+extern CTweak<uint64_t> syncMempoolWithPeers;
 extern CTweak<uint64_t> mempoolSyncMinVersionSupported;
 extern CTweak<uint64_t> mempoolSyncMaxVersionSupported;
 
@@ -59,7 +62,23 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
         return error("invalid GET_MEMPOOLSYNC message type=%u\n", inv.type);
     }
 
-    // TODO: Add some sort of DoS detection
+    if (!syncMempoolWithPeers.Value())
+    {
+        dosMan.Misbehaving(pfrom, 100);
+        return error("Mempool sync requested from peer %s but not supported\n", pfrom->GetLogName());
+    }
+
+    if (mempoolSyncResponded.count(pfrom) > 0 &&
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::high_resolution_clock::now() - mempoolSyncResponded[pfrom])
+                .count() < MEMPOOLSYNC_FREQ_US)
+    {
+        dosMan.Misbehaving(pfrom, 100);
+        return error("Mempool sync requested less than %d mu seconds ago from peer %s\n", MEMPOOLSYNC_FREQ_US,
+            pfrom->GetLogName());
+    }
+
+    mempoolSyncResponded[pfrom] = std::chrono::high_resolution_clock::now();
 
     if (inv.type == MSG_MEMPOOLSYNC)
     {

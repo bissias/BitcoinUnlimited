@@ -26,6 +26,7 @@ const uint64_t MEMPOOLSYNC_FREQ_US = 30 * 1e6;
 const bool COMPUTE_OPTIMIZED = true;
 
 extern std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncRequested;
+extern std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncResponded;
 
 class CMempoolSyncInfo
 {
