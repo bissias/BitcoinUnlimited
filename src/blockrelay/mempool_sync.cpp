@@ -70,7 +70,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
 
     if (mempoolSyncResponded.count(pfrom) > 0 &&
         std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::high_resolution_clock::now() - mempoolSyncResponded[pfrom])
+            std::chrono::high_resolution_clock::now() - mempoolSyncResponded[pfrom].lastUpdated)
                 .count() < MEMPOOLSYNC_FREQ_US)
     {
         dosMan.Misbehaving(pfrom, 100);
@@ -78,7 +78,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
             pfrom->GetLogName());
     }
 
-    mempoolSyncResponded[pfrom] = std::chrono::high_resolution_clock::now();
+    mempoolSyncResponded[pfrom] = CMempoolSyncState();
 
     if (inv.type == MSG_MEMPOOLSYNC)
     {

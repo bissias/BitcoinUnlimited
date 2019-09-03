@@ -25,8 +25,21 @@ const uint64_t MEMPOOLSYNC_FREQ_US = 30 * 1e6;
 // Use CVariableFastFilter if true, otherwise use CBloomFilter
 const bool COMPUTE_OPTIMIZED = true;
 
-extern std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncRequested;
-extern std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncResponded;
+class CMempoolSyncState
+{
+public:
+    std::chrono::time_point<std::chrono::high_resolution_clock> lastUpdated;
+
+public:
+    CMempoolSyncState(std::chrono::time_point<std::chrono::high_resolution_clock> _lastUpdated)
+    {
+        lastUpdated = _lastUpdated;
+    }
+    CMempoolSyncState() { lastUpdated = std::chrono::high_resolution_clock::now(); }
+};
+
+extern std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
+extern std::map<CNode *, CMempoolSyncState> mempoolSyncResponded;
 
 class CMempoolSyncInfo
 {

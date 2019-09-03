@@ -27,6 +27,7 @@ successful receipt, "requester.Rejected(...)" to indicate a bad object (request 
 #ifndef REQUEST_MANAGER_H
 #define REQUEST_MANAGER_H
 
+#include "blockrelay/mempool_sync.h"
 #include "net.h"
 #include "nodestate.h"
 #include "stat.h"
@@ -46,7 +47,7 @@ extern unsigned int blkReqRetryInterval;
 extern unsigned int MIN_BLK_REQUEST_RETRY_INTERVAL;
 static const unsigned int DEFAULT_MIN_BLK_REQUEST_RETRY_INTERVAL = 5 * 1000 * 1000;
 // Which peers have mempool synchronization in-flight?
-extern std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncRequested;
+extern std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
 
 class CNode;
 

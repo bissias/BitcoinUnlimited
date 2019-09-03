@@ -475,8 +475,8 @@ CThinBlockData thindata;
 CGrapheneBlockData graphenedata;
 CCompactBlockData compactdata;
 ThinTypeRelay thinrelay;
-std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncRequested;
-std::map<CNode *, std::chrono::time_point<std::chrono::high_resolution_clock> > mempoolSyncResponded;
+std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
+std::map<CNode *, CMempoolSyncState> mempoolSyncResponded;
 
 // Are we shutting down. Replaces boost interrupts.
 std::atomic<bool> shutdown_threads{false};

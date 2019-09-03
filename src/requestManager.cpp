@@ -1198,7 +1198,7 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
 {
     if ((mempoolSyncRequested.count(pto) == 0 ||
             std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::high_resolution_clock::now() - mempoolSyncRequested[pto])
+                std::chrono::high_resolution_clock::now() - mempoolSyncRequested[pto].lastUpdated)
                     .count() > MEMPOOLSYNC_FREQ_US) &&
         pto->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC))
     {
@@ -1211,7 +1211,7 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
         ss << inv;
         ss << receiverMemPoolInfo;
 
-        mempoolSyncRequested[pto] = std::chrono::high_resolution_clock::now();
+        mempoolSyncRequested[pto] = CMempoolSyncState();
         pto->PushMessage(NetMsgType::GET_MEMPOOLSYNC, ss);
         LOG(GRAPHENE, "Requesting mempool synchronization from peer %s\n", pto->GetLogName());
     }
