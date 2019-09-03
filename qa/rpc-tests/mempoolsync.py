@@ -108,9 +108,9 @@ class MempoolSyncTest(BitcoinTestFramework):
         for i in range(10):
             self.nodes[2].sendtoaddress(self.nodes[2].getnewaddress(), Decimal("10"))
 
-        waitFor(5, lambda: len(self.nodes[0].getrawmempool()) == 30)
-        waitFor(5, lambda: len(self.nodes[1].getrawmempool()) == 30)
-        waitFor(5, lambda: len(self.nodes[2].getrawmempool()) == 30)
+        waitFor(35, lambda: len(self.nodes[0].getrawmempool()) == 30)
+        waitFor(35, lambda: len(self.nodes[1].getrawmempool()) == 30)
+        waitFor(35, lambda: len(self.nodes[2].getrawmempool()) == 30)
 
 if __name__ == '__main__':
     MempoolSyncTest().main()

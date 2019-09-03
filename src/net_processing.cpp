@@ -2566,11 +2566,6 @@ bool SendMessages(CNode *pto)
             }
         }
 
-        // If chain is sync'd then perform a mempool sync
-        if (IsChainSyncd())
-        {
-            requester.RequestMempoolSync(pto);
-        }
         // If the chain is not entirely sync'd then look for new blocks to download.
         //
         // Also check an edge condition, where we've invalidated a chain and set the pindexBestHeader to the

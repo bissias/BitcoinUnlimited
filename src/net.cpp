@@ -2278,6 +2278,10 @@ void ThreadMessageHandler()
 
         bool fSleep = true;
 
+        // randomly select node with whom to request mempoolsync
+        if (vNodesCopy.size() > 0)
+            requester.RequestMempoolSync(vNodesCopy[GetRandInt(vNodesCopy.size())]);
+
         for (CNode *pnode : vNodesCopy)
         {
             if (pnode->fDisconnect)

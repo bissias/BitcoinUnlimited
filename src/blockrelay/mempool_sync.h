@@ -21,7 +21,7 @@ const uint32_t IBLT_ENTROPY = 13;
 // any value greater than 2 will use SipHash
 const uint64_t SHORT_ID_VERSION = 2;
 // frequency of synchronization (per peer) in milliseconds
-const uint64_t MEMPOOLSYNC_FREQ_US = 3 * 1e6;
+const uint64_t MEMPOOLSYNC_FREQ_US = 30 * 1e6;
 // Use CVariableFastFilter if true, otherwise use CBloomFilter
 const bool COMPUTE_OPTIMIZED = true;
 
