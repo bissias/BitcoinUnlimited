@@ -96,9 +96,9 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
                 mempool.mapTx.get<ancestor_score>().begin();
             for (; it != mempool.mapTx.get<ancestor_score>().end() && nRemainingMempoolBytes > 0; ++it)
             {
-                uint64_t nTxSize = it->GetTx().GetTxSize();
-                uint64_t nFee = it->GetFee();
-                uint64_t nSatoshiPerK = (uint64_t)(1000 * nFee / (double)nTxSize);
+                size_t nTxSize = it->GetTx().GetTxSize();
+                int64_t nFee = it->GetFee();
+                uint64_t nSatoshiPerK = (uint64_t)(1000 * nFee / (1.0 * nTxSize));
 
                 // Skip tx if fee rate is too low
                 if (nSatoshiPerK < mempoolinfo.nSatoshiPerK)
