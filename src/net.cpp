@@ -2804,9 +2804,8 @@ uint64_t CNode::GetOutboundTargetBytesLeft()
     if (nMaxOutboundLimit == 0)
         return 0;
 
-    return (nMaxOutboundTotalBytesSentInCycle >= nMaxOutboundLimit) ?
-               0 :
-               nMaxOutboundLimit - nMaxOutboundTotalBytesSentInCycle;
+    return (nMaxOutboundTotalBytesSentInCycle >= nMaxOutboundLimit) ? 0 : nMaxOutboundLimit -
+                                                                              nMaxOutboundTotalBytesSentInCycle;
 }
 
 uint64_t CNode::GetTotalBytesRecv() { return nTotalBytesRecv; }

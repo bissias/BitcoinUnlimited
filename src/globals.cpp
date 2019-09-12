@@ -456,7 +456,7 @@ CTweak<double> dMaxLimiterTxFee("maxlimitertxfee",
 CTweak<double> dMinLimiterTxFee("minlimitertxfee",
     strprintf("Fees (in satoshi/byte) smaller than this are considered "
               "zero fee and subject to -limitfreerelay (default: %.4f)",
-        DEFAULT_MINLIMITERTXFEE),
+                                    DEFAULT_MINLIMITERTXFEE),
     DEFAULT_MINLIMITERTXFEE);
 
 CRequestManager requester; // after the maps nodes and tweaks
