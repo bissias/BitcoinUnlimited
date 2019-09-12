@@ -24,20 +24,6 @@ class MempoolSyncTest(BitcoinTestFramework):
                       'validation_time'}
     def __init__(self, test_assertion='success'):
         self.rep = False
-        """
-        BitcoinTestFramework.__init__(self)
-
-        if test_assertion == 'success':
-            self.test_assertion = self.assert_success
-        else:
-            self.test_assertion = self.assert_failure
-        """
-
-    """
-    def setup_chain(self):
-        print ("Initializing test directory " + self.options.tmpdir)
-        initialize_chain_clean(self.options.tmpdir, 3)
-    """
 
     def set_test_params(self):
         self.num_nodes = 3
@@ -108,9 +94,9 @@ class MempoolSyncTest(BitcoinTestFramework):
         for i in range(10):
             self.nodes[2].sendtoaddress(self.nodes[2].getnewaddress(), Decimal("10"))
 
-        waitFor(45, lambda: len(self.nodes[0].getrawmempool()) == 30)
-        waitFor(45, lambda: len(self.nodes[1].getrawmempool()) == 30)
-        waitFor(45, lambda: len(self.nodes[2].getrawmempool()) == 30)
+        waitFor(180, lambda: len(self.nodes[0].getrawmempool()) == 30)
+        waitFor(180, lambda: len(self.nodes[1].getrawmempool()) == 30)
+        waitFor(180, lambda: len(self.nodes[2].getrawmempool()) == 30)
 
 if __name__ == '__main__':
     MempoolSyncTest().main()
