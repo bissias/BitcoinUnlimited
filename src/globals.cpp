@@ -477,6 +477,7 @@ CCompactBlockData compactdata;
 ThinTypeRelay thinrelay;
 std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
 std::map<CNode *, CMempoolSyncState> mempoolSyncResponded;
+CCriticalSection cs_mempoolsync;
 
 // Are we shutting down. Replaces boost interrupts.
 std::atomic<bool> shutdown_threads{false};

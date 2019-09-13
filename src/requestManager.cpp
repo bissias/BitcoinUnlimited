@@ -1196,6 +1196,8 @@ void CRequestManager::FindNextBlocksToDownload(CNode *node, unsigned int count, 
 
 void CRequestManager::RequestMempoolSync(CNode *pto)
 {
+    LOCK(cs_mempoolsync);
+
     if ((mempoolSyncRequested.count(pto) == 0 ||
             std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::high_resolution_clock::now() - mempoolSyncRequested[pto].lastUpdated)
@@ -1214,7 +1216,7 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
         mempoolSyncRequested[pto] = CMempoolSyncState(std::chrono::high_resolution_clock::now(),
             receiverMemPoolInfo.shorttxidk0, receiverMemPoolInfo.shorttxidk1);
         pto->PushMessage(NetMsgType::GET_MEMPOOLSYNC, ss);
-        LOG(GRAPHENE, "Requesting mempool synchronization from peer %s\n", pto->GetLogName());
+        LOG(MPOOLSYNC, "Requesting mempool synchronization from peer %s\n", pto->GetLogName());
     }
 }
 

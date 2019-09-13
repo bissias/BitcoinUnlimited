@@ -74,7 +74,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
     if (mempoolSyncResponded.count(pfrom) > 0 &&
         std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::high_resolution_clock::now() - mempoolSyncResponded[pfrom].lastUpdated)
-                .count() < MEMPOOLSYNC_FREQ_US)
+                .count() < MEMPOOLSYNC_FREQ_US - MEMPOOLSYNC_FREQ_GRACE_US)
     {
         dosMan.Misbehaving(pfrom, 100);
         return error("Mempool sync requested less than %d mu seconds ago from peer %s\n", MEMPOOLSYNC_FREQ_US,
@@ -86,6 +86,8 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
 
     if (inv.type == MSG_MEMPOOLSYNC)
     {
+        LOG(MPOOLSYNC, "Mempool currently holds %d transactions\n", mempool.size());
+
         std::vector<uint256> mempoolTxHashes;
         // cycle through mempool txs in order of ancestor_score
         {
@@ -111,7 +113,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
 
         if (mempoolTxHashes.size() == 0)
         {
-            LOG(MPOOLSYNC, "mempool is empty; aborting mempool sync with peer %s\n", pfrom->GetLogName());
+            LOG(MPOOLSYNC, "Mempool is empty; aborting mempool sync with peer %s\n", pfrom->GetLogName());
             return true;
         }
 
