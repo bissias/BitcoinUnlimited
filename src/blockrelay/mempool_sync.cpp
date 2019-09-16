@@ -41,9 +41,10 @@ CMempoolSync::CMempoolSync(std::vector<uint256> mempoolTxHashes,
     uint64_t shorttxidk0,
     uint64_t shorttxidk1,
     uint64_t _version)
-    : version(_version), nSenderMempoolTxs(0)
 {
     uint64_t grapheneSetVersion = CMempoolSync::GetGrapheneSetVersion(version);
+    version = _version;
+    nSenderMempoolTxs = 0;
     nSenderMempoolTxs = mempoolTxHashes.size();
 
     pGrapheneSet = std::make_shared<CGrapheneSet>(CGrapheneSet(nReceiverMemPoolTx, nSenderMempoolPlusBlock,
@@ -261,7 +262,6 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
 bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
 {
     std::string strCommand = NetMsgType::MEMPOOLSYNCTX;
-    size_t msgSize = vRecv.size();
     CMempoolSyncTx mempoolSyncTx;
     vRecv >> mempoolSyncTx;
 
@@ -275,7 +275,6 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     LOG(MPOOLSYNC, "Received memsynctx from peer=%s; adding %d transactions to mempool\n", pfrom->GetLogName(),
         mempoolSyncTx.vTx.size());
 
-    size_t idx = 0;
     for (const CTransaction &tx : mempoolSyncTx.vTx)
     {
         CTxInputData inputData;

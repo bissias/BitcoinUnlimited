@@ -14,7 +14,7 @@ BOOST_FIXTURE_TEST_SUITE(mempool_sync_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(mempool_sync_can_serde)
 {
-    uint64_t version = MEMPOOL_SYNC_MAX_VERSION_SUPPORTED;
+    uint64_t sync_version = MEMPOOL_SYNC_MAX_VERSION_SUPPORTED;
     uint64_t nReceiverMemPoolTx = 0;
     uint64_t nSenderMempoolPlusBlock = 1;
     uint64_t shorttxidk0 = 7;
@@ -34,9 +34,9 @@ BOOST_AUTO_TEST_CASE(mempool_sync_can_serde)
     std::vector<uint256> senderMempoolTxHashes;
     std::vector<uint256> receiverMempoolTxHashes;
     senderMempoolTxHashes.push_back(tx.GetHash());
-    CMempoolSync senderMempoolSync(senderMempoolTxHashes, nReceiverMemPoolTx, nSenderMempoolPlusBlock, shorttxidk0,
-        shorttxidk1, CMempoolSync::GetGrapheneSetVersion(0));
-    CMempoolSync receiverMempoolSync;
+    CMempoolSync senderMempoolSync(
+        senderMempoolTxHashes, nReceiverMemPoolTx, nSenderMempoolPlusBlock, shorttxidk0, shorttxidk1, sync_version);
+    CMempoolSync receiverMempoolSync(sync_version);
     CDataStream ss(SER_DISK, 0);
 
     ss << senderMempoolSync;

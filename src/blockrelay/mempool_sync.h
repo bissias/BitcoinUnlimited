@@ -18,8 +18,8 @@ const uint32_t IBLT_ENTROPY = 13;
 // any value greater than 2 will use SipHash
 const uint64_t SHORT_ID_VERSION = 2;
 // frequency of synchronization (per peer) in milliseconds
-const uint64_t MEMPOOLSYNC_FREQ_US = 30 * 1e6;
-const uint64_t MEMPOOLSYNC_FREQ_GRACE_US = 5 * 1e6;
+const int64_t MEMPOOLSYNC_FREQ_US = 30 * 1e6;
+const int64_t MEMPOOLSYNC_FREQ_GRACE_US = 5 * 1e6;
 // Use CVariableFastFilter if true, otherwise use CBloomFilter
 const bool COMPUTE_OPTIMIZED = true;
 
@@ -87,8 +87,8 @@ public:
         uint64_t shorttxidk0,
         uint64_t shorttxidk1,
         uint64_t _version);
-    CMempoolSync() : pGrapheneSet(nullptr), version(0) {}
-    CMempoolSync(uint64_t _version) : pGrapheneSet(nullptr) {}
+    CMempoolSync() : nSenderMempoolTxs(0), pGrapheneSet(nullptr), version(0) {}
+    CMempoolSync(uint64_t _version) : nSenderMempoolTxs(0), pGrapheneSet(nullptr) {}
     ~CMempoolSync();
 
     static inline uint64_t GetGrapheneSetVersion(uint64_t grapheneBlockVersion) { return 4; }
