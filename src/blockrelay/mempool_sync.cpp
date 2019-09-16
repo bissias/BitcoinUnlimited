@@ -248,7 +248,11 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         if (reqMempoolSyncTx.setCheapHashesToRequest.count(cheapHash) == 0)
             continue;
 
-        vTx.push_back(*(mempool.get(hash).get()));
+        auto txRef = mempool.get(hash);
+        if (txRef == nullptr)
+            continue;
+
+        vTx.push_back(*(txRef.get()));
     }
 
     LOG(MPOOLSYNC, "Sending %d mempool sync transactions to peer=%s\n", vTx.size(), pfrom->GetLogName());
