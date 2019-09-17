@@ -151,10 +151,10 @@ public:
 class CMempoolSyncTx
 {
 public:
-    std::vector<CTransaction> vTx;
+    std::vector<CTransactionRef> vTx;
 
 public:
-    CMempoolSyncTx(std::vector<CTransaction> &_vTx) : vTx(_vTx){};
+    CMempoolSyncTx(std::vector<CTransactionRef> &_vTx) : vTx(_vTx){};
     CMempoolSyncTx(){};
 
     /**

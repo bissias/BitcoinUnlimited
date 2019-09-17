@@ -239,7 +239,7 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
 
     // Locate transactions requested
     // Note that only those still in the mempool will be located
-    std::vector<CTransaction> vTx;
+    std::vector<CTransactionRef> vTx;
     for (auto &hash : mempoolTxHashes)
     {
         uint64_t cheapHash = GetShortID(
@@ -252,7 +252,7 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         if (txRef == nullptr)
             continue;
 
-        vTx.push_back(*(txRef.get()));
+        vTx.push_back(txRef);
     }
 
     LOG(MPOOLSYNC, "Sending %d mempool sync transactions to peer=%s\n", vTx.size(), pfrom->GetLogName());
@@ -279,10 +279,10 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     LOG(MPOOLSYNC, "Received memsynctx from peer=%s; adding %d transactions to mempool\n", pfrom->GetLogName(),
         mempoolSyncTx.vTx.size());
 
-    for (const CTransaction &tx : mempoolSyncTx.vTx)
+    for (const auto &tx : mempoolSyncTx.vTx)
     {
         CTxInputData inputData;
-        inputData.tx = std::make_shared<CTransaction>(tx);
+        inputData.tx = tx;
         inputData.nodeId = pfrom->id;
         EnqueueTxForAdmission(inputData);
     }
