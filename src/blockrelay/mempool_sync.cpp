@@ -82,8 +82,8 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
             pfrom->GetLogName());
     }
 
-    mempoolSyncResponded[pfrom] =
-        CMempoolSyncState(std::chrono::high_resolution_clock::now(), mempoolinfo.shorttxidk0, mempoolinfo.shorttxidk1);
+    mempoolSyncResponded[pfrom] = CMempoolSyncState(
+        std::chrono::high_resolution_clock::now(), mempoolinfo.shorttxidk0, mempoolinfo.shorttxidk1, false);
 
     if (inv.type == MSG_MEMPOOLSYNC)
     {
@@ -231,6 +231,13 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         return error("Received getmemsynctx from peer %s but mempool sync is not in progress", pfrom->GetLogName());
     }
 
+    // Already processed requested transactions
+    if (mempoolSyncResponded[pfrom].completed)
+    {
+        dosMan.Misbehaving(pfrom, 100);
+        return error("Received getmemsynctx from peer %s but mempool sync has already completed", pfrom->GetLogName());
+    }
+
     LOG(MPOOLSYNC, "Received getmemsynctx from peer=%s requesting %d transactions\n", pfrom->GetLogName(),
         reqMempoolSyncTx.setCheapHashesToRequest.size());
 
@@ -259,6 +266,7 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
 
     CMempoolSyncTx mempoolSyncTx(vTx);
     pfrom->PushMessage(NetMsgType::MEMPOOLSYNCTX, mempoolSyncTx);
+    mempoolSyncResponded[pfrom].completed = true;
 
     return true;
 }
@@ -276,6 +284,13 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         return error("Received memsynctx from peer %s but mempool sync is not in progress", pfrom->GetLogName());
     }
 
+    // Already received requested transactions
+    if (mempoolSyncRequested[pfrom].completed)
+    {
+        dosMan.Misbehaving(pfrom, 100);
+        return error("Received memsynctx from peer %s but transactions have already been sent", pfrom->GetLogName());
+    }
+
     LOG(MPOOLSYNC, "Received memsynctx from peer=%s; adding %d transactions to mempool\n", pfrom->GetLogName(),
         mempoolSyncTx.vTx.size());
 
@@ -288,6 +303,7 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     }
 
     LOG(MPOOLSYNC, "Recovered %d txs from peer=%s via mempool sync\n", mempoolSyncTx.vTx.size(), pfrom->GetLogName());
+    mempoolSyncRequested[pfrom].completed = true;
 
     return true;
 }
