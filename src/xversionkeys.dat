@@ -35,7 +35,7 @@ KEY i BU_GRAPHENE_MIN_VERSION_SUPPORTED         0x0002                   0x0005 
 # Mempool sync preferences
 KEY i BU_MEMPOOL_SYNC                           0x0002                   0x0006         u64c
 KEY i BU_MEMPOOL_SYNC_MIN_VERSION_SUPPORTED     0x0002                   0x0007         u64c
-KEY i BU_MEMPOOL_SYNC_MAX_VERSION_SUPPORTED     0x0002                   0x0007         u64c
+KEY i BU_MEMPOOL_SYNC_MAX_VERSION_SUPPORTED     0x0002                   0x0008         u64c
 
 # Communicate mempool unconfirmed preferences to connected nodes.  This allows those nodes to send transactions when they will be accepted.
 KEY i BU_MEMPOOL_ANCESTOR_COUNT_LIMIT           0x0002                   0x0009         u64c
