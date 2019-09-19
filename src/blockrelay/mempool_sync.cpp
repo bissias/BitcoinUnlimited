@@ -159,7 +159,7 @@ bool CMempoolSync::ReceiveMempoolSync(CDataStream &vRecv, CNode *pfrom, std::str
     }
 
     // Do not proceed if this request has already been processed
-    if (mempoolSyncResponded[pfrom].completed)
+    if (mempoolSyncRequested[pfrom].completed)
     {
         dosMan.Misbehaving(pfrom, 100);
         return error(
