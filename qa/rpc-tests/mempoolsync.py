@@ -10,18 +10,6 @@ import time
 
 
 class MempoolSyncTest(BitcoinTestFramework):
-    expected_stats = {'enabled', 
-                      'filter', 
-                      'graphene_additional_tx_size', 
-                      'graphene_block_size', 
-                      'iblt', 
-                      'inbound_percent', 
-                      'outbound_percent', 
-                      'rank', 
-                      'rerequested', 
-                      'response_time', 
-                      'summary', 
-                      'validation_time'}
     def __init__(self, test_assertion='success'):
         self.rep = False
 
@@ -31,10 +19,9 @@ class MempoolSyncTest(BitcoinTestFramework):
     def setup_network(self, split=False):
         node_opts = [
             "-rpcservertimeout=0",
-            "-debug=all",
+            "-debug=mempoolsync",
             "-net.syncMempoolWithPeers=1",
             "-net.randomlyDontInv=100",
-            "-use-grapheneblocks=0",
             "-excessiveblocksize=6000000",
             "-blockprioritysize=6000000",
             "-blockmaxsize=6000000"]
@@ -48,31 +35,6 @@ class MempoolSyncTest(BitcoinTestFramework):
         interconnect_nodes(self.nodes)
         self.is_network_split = False
         self.sync_all()
-
-    def extract_stats_fields(self, node):
-        gni = node.getnetworkinfo()
-        assert "grapheneblockstats" in gni
-        tbs = gni["grapheneblockstats"]
-        assert "enabled" in tbs and tbs["enabled"]
-        assert set(tbs) == self.expected_stats
-
-        return tbs
-
-    def assert_success(self):
-        # Nodes 0 and 1 should have received one block from node 2.
-        assert '1 inbound and 0 outbound graphene blocks' in self.extract_stats_fields(self.nodes[0])['summary']
-        assert '1 inbound and 0 outbound graphene blocks' in self.extract_stats_fields(self.nodes[1])['summary']
-
-        # Node 2 should have sent a block to the two other nodes
-        assert '0 inbound and 2 outbound graphene blocks' in self.extract_stats_fields(self.nodes[2])['summary']
-
-    def assert_failure(self):
-        try:
-            self.assert_success()
-        except AssertionError:
-            return
-
-        raise AssertionError('graphene block failure was expected but not encountered')
 
     def run_test(self):
         chain_height = self.nodes[0].getblockcount()
