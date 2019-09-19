@@ -66,12 +66,14 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
         return error("invalid GET_MEMPOOLSYNC message type=%u\n", inv.type);
     }
 
+    // Requester should only contact peers that support mempool sync
     if (!syncMempoolWithPeers.Value())
     {
         dosMan.Misbehaving(pfrom, 100);
         return error("Mempool sync requested from peer %s but not supported\n", pfrom->GetLogName());
     }
 
+    // Requester must limit request frequency
     if (mempoolSyncResponded.count(pfrom) > 0 &&
         std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::high_resolution_clock::now() - mempoolSyncResponded[pfrom].lastUpdated)
@@ -82,6 +84,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
             pfrom->GetLogName());
     }
 
+    // Record request
     mempoolSyncResponded[pfrom] = CMempoolSyncState(
         std::chrono::high_resolution_clock::now(), mempoolinfo.shorttxidk0, mempoolinfo.shorttxidk1, false);
 
@@ -118,6 +121,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
             return true;
         }
 
+        // Assemble mempool sync object
         uint64_t nBothMempools = mempoolTxHashes.size() + mempoolinfo.nTxInMempool;
         CMempoolSync mempoolSync(mempoolTxHashes, mempoolinfo.nTxInMempool, nBothMempools, mempoolinfo.shorttxidk0,
             mempoolinfo.shorttxidk1, NegotiateMempoolSyncVersion(pfrom));
@@ -140,7 +144,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
  */
 bool CMempoolSync::ReceiveMempoolSync(CDataStream &vRecv, CNode *pfrom, std::string strCommand)
 {
-    // Deserialize mempool sync payload and store a block to reconstruct
+    // Deserialize mempool sync payload
     CMempoolSync tmp;
     vRecv >> tmp;
     auto mempoolSync = std::make_shared<CMempoolSync>(std::forward<CMempoolSync>(tmp));
@@ -152,6 +156,14 @@ bool CMempoolSync::ReceiveMempoolSync(CDataStream &vRecv, CNode *pfrom, std::str
     {
         dosMan.Misbehaving(pfrom, 10);
         return error("Received unrequested mempool sync from peer %s\n", pfrom->GetLogName());
+    }
+
+    // Do not proceed if this request has already been processed
+    if (mempoolSyncResponded[pfrom].completed)
+    {
+        dosMan.Misbehaving(pfrom, 100);
+        return error(
+            "Received mempool sync from peer %s but synchronization has already completed", pfrom->GetLogName());
     }
 
     return mempoolSync->process(pfrom);
@@ -166,6 +178,7 @@ bool CMempoolSync::process(CNode *pfrom)
     std::vector<uint256> mempoolTxHashes;
     GetMempoolTxHashes(mempoolTxHashes);
 
+    // Collect cheap hashes
     for (const uint256 &hash : mempoolTxHashes)
     {
         uint64_t cheapHash = GetShortID(
@@ -196,7 +209,7 @@ bool CMempoolSync::process(CNode *pfrom)
     LOG(MPOOLSYNC, "Mempool sync received: %d total txns, waiting for: %d from peer %s\n", nSenderMempoolTxs,
         setHashesToRequest.size(), pfrom->GetLogName());
 
-    // If there are any missing hashes or transactions then we request them here.
+    // If there are any missing transactions then we request them here.
     if (setHashesToRequest.size() > 0)
     {
         CRequestMempoolSyncTx mempoolSyncTx(setHashesToRequest);
@@ -207,7 +220,9 @@ bool CMempoolSync::process(CNode *pfrom)
         return true;
     }
 
-    // We now have all the transactions that are in this sync
+    // If there are no transactions to request, then synchronization is complete
+    mempoolSyncRequested[pfrom].completed = true;
+
     LOG(MPOOLSYNC, "Completeing mempool sync with %s; no missing transactions\n", pfrom->GetLogName());
 
     return true;
@@ -225,6 +240,7 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         return error("Incorrectly constructed getmemsynctx received.  Banning peer=%s", pfrom->GetLogName());
     }
 
+    // A response was received for a request that was not made
     if (mempoolSyncResponded.count(pfrom) == 0)
     {
         dosMan.Misbehaving(pfrom, 10);
@@ -264,8 +280,11 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
 
     LOG(MPOOLSYNC, "Sending %d mempool sync transactions to peer=%s\n", vTx.size(), pfrom->GetLogName());
 
+    // Assemble missing transaction object
     CMempoolSyncTx mempoolSyncTx(vTx);
     pfrom->PushMessage(NetMsgType::MEMPOOLSYNCTX, mempoolSyncTx);
+
+    // We should not receive any future messages related to this synchronization round
     mempoolSyncResponded[pfrom].completed = true;
 
     return true;
@@ -294,6 +313,7 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     LOG(MPOOLSYNC, "Received memsynctx from peer=%s; adding %d transactions to mempool\n", pfrom->GetLogName(),
         mempoolSyncTx.vTx.size());
 
+    // Add transactions to mempool
     for (const auto &tx : mempoolSyncTx.vTx)
     {
         CTxInputData inputData;
@@ -303,6 +323,8 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     }
 
     LOG(MPOOLSYNC, "Recovered %d txs from peer=%s via mempool sync\n", mempoolSyncTx.vTx.size(), pfrom->GetLogName());
+
+    // We should not receive any future messages related to this round of synchronization
     mempoolSyncRequested[pfrom].completed = true;
 
     return true;
@@ -354,6 +376,7 @@ CMempoolSyncInfo GetMempoolSyncInfo()
     uint64_t shorttxidk0 = shorttxidhash.GetUint64(0);
     uint64_t shorttxidk1 = shorttxidhash.GetUint64(1);
 
+    // Calculate how many bytes of space remain in the mempool
     uint64_t nRemainingMempoolTxBytes = nMempoolMaxTxBytes;
     {
         READLOCK(mempool.cs);
