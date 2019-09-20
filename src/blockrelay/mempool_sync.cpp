@@ -340,8 +340,6 @@ void GetMempoolTxHashes(std::vector<uint256> &mempoolTxHashes)
         }
     }
 
-    // We don't have to keep the lock on mempool.cs here to do mempool.queryHashes
-    // but we take the lock anyway so we don't have to re-lock again later.
     std::vector<uint256> memPoolHashes;
     mempool.queryHashes(memPoolHashes);
 
