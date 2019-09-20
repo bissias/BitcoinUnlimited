@@ -14,7 +14,7 @@ BOOST_FIXTURE_TEST_SUITE(mempool_sync_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(mempool_sync_can_serde)
 {
-    uint64_t sync_version = MEMPOOL_SYNC_MAX_VERSION_SUPPORTED;
+    uint64_t sync_version = DEFAULT_MEMPOOL_SYNC_MAX_VERSION_SUPPORTED;
     uint64_t nReceiverMemPoolTx = 0;
     uint64_t nSenderMempoolPlusBlock = 1;
     uint64_t shorttxidk0 = 7;

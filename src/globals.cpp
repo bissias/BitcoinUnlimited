@@ -406,20 +406,20 @@ CTweak<bool> syncMempoolWithPeers("net.syncMempoolWithPeers", "Synchronize mempo
 /** This setting specifies the minimum supported mempool sync version (inclusive).
  *  The actual version used will be negotiated between sender and receiver.
  */
-std::string memSyncMinVerStr =
-    "Minimum mempool sync version supported (default: " + std::to_string(MEMPOOL_SYNC_MIN_VERSION_SUPPORTED) + ")";
+std::string memSyncMinVerStr = "Minimum mempool sync version supported (default: " +
+                               std::to_string(DEFAULT_MEMPOOL_SYNC_MIN_VERSION_SUPPORTED) + ")";
 CTweak<uint64_t> mempoolSyncMinVersionSupported("net.mempoolSyncMinVersionSupported",
     memSyncMinVerStr,
-    MEMPOOL_SYNC_MIN_VERSION_SUPPORTED);
+    DEFAULT_MEMPOOL_SYNC_MIN_VERSION_SUPPORTED);
 
 /** This setting specifies the maximum supported mempool sync version (inclusive).
  *  The actual version used will be negotiated between sender and receiver.
  */
-std::string memSyncMaxVerStr =
-    "Maximum mempool sync version supported (default: " + std::to_string(MEMPOOL_SYNC_MAX_VERSION_SUPPORTED) + ")";
+std::string memSyncMaxVerStr = "Maximum mempool sync version supported (default: " +
+                               std::to_string(DEFAULT_MEMPOOL_SYNC_MAX_VERSION_SUPPORTED) + ")";
 CTweak<uint64_t> mempoolSyncMaxVersionSupported("net.mempoolSyncMaxVersionSupported",
     memSyncMaxVerStr,
-    MEMPOOL_SYNC_MAX_VERSION_SUPPORTED);
+    DEFAULT_MEMPOOL_SYNC_MAX_VERSION_SUPPORTED);
 
 /** This is the initial size of CFileBuffer's RAM buffer during reindex.  A
 larger size will result in a tiny bit better performance if blocks are that
