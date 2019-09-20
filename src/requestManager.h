@@ -33,7 +33,6 @@ successful receipt, "requester.Rejected(...)" to indicate a bad object (request 
 #include "stat.h"
 
 #include <atomic>
-#include <chrono>
 
 // Max requests allowed in a 10 minute window
 static const uint8_t MAX_THINTYPE_OBJECT_REQUESTS = 100;

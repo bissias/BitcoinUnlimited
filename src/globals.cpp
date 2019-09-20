@@ -50,7 +50,6 @@
 #include <atomic>
 #include <boost/lexical_cast.hpp>
 #include <boost/thread/tss.hpp> // for boost::thread_specific_ptr
-#include <chrono>
 #include <inttypes.h>
 #include <iomanip>
 #include <list>
