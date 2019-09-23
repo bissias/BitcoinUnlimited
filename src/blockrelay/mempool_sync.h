@@ -183,5 +183,6 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom);
 void GetMempoolTxHashes(std::vector<uint256> &mempoolTxHashes);
 CMempoolSyncInfo GetMempoolSyncInfo();
 uint64_t NegotiateMempoolSyncVersion(CNode *pfrom);
+CNode *SelectMempoolSyncPeer(std::vector<CNode *> vNodesCopy);
 
 #endif // BITCOIN_MEMPOOL_SYNC_H

@@ -50,6 +50,7 @@
 #include <atomic>
 #include <boost/lexical_cast.hpp>
 #include <boost/thread/tss.hpp> // for boost::thread_specific_ptr
+#include <chrono>
 #include <inttypes.h>
 #include <iomanip>
 #include <list>
@@ -476,6 +477,7 @@ CCompactBlockData compactdata;
 ThinTypeRelay thinrelay;
 std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
 std::map<CNode *, CMempoolSyncState> mempoolSyncResponded;
+std::chrono::time_point<std::chrono::high_resolution_clock> lastMempoolSync = std::chrono::high_resolution_clock::now();
 CCriticalSection cs_mempoolsync;
 
 // Are we shutting down. Replaces boost interrupts.

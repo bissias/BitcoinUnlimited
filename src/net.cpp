@@ -17,6 +17,7 @@
 #include "addrman.h"
 #include "blockrelay/blockrelay_common.h"
 #include "blockrelay/graphene.h"
+#include "blockrelay/mempool_sync.h"
 #include "chainparams.h"
 #include "connmgr.h"
 #include "consensus/consensus.h"
@@ -47,6 +48,7 @@ extern CTweak<bool> ignoreNetTimeouts;
 #endif
 
 #include <boost/filesystem.hpp>
+#include <chrono>
 #include <thread>
 
 #include <math.h>
@@ -140,6 +142,9 @@ boost::condition_variable messageHandlerCondition;
 // BU  Connection Slot mitigation - used to determine how many connection attempts over time
 extern std::map<CNetAddr, ConnectionHistory> mapInboundConnectionTracker;
 extern CCriticalSection cs_mapInboundConnectionTracker;
+
+// Mempool synchronization
+extern std::chrono::time_point<std::chrono::high_resolution_clock> lastMempoolSync;
 
 // Signals for message handling
 extern CNodeSignals g_signals;
@@ -2278,9 +2283,15 @@ void ThreadMessageHandler()
 
         bool fSleep = true;
 
-        // randomly select node with whom to request mempoolsync
-        if (vNodesCopy.size() > 0)
-            requester.RequestMempoolSync(vNodesCopy[GetRandInt(vNodesCopy.size())]);
+        if ((std::chrono::duration_cast<std::chrono::microseconds>(
+                 std::chrono::high_resolution_clock::now() - lastMempoolSync)
+                    .count() > MEMPOOLSYNC_FREQ_US) &&
+            vNodesCopy.size() > 0)
+        {
+            // select node from whom to request mempool sync
+            CNode *syncPeer = SelectMempoolSyncPeer(vNodesCopy);
+            requester.RequestMempoolSync(syncPeer);
+        }
 
         for (CNode *pnode : vNodesCopy)
         {

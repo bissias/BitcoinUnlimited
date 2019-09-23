@@ -11,6 +11,7 @@
 #include "xversionkeys.h"
 
 #include <chrono>
+#include <random>
 
 extern CTxMemPool mempool;
 extern CTweak<uint64_t> syncMempoolWithPeers;
@@ -401,4 +402,10 @@ uint64_t NegotiateMempoolSyncVersion(CNode *pfrom)
         throw std::runtime_error("Sender and receiver support incompatible mempool sync versions");
 
     return upper;
+}
+
+CNode *SelectMempoolSyncPeer(std::vector<CNode *> vNodesCopy)
+{
+    // randomly select node with whom to request mempoolsync
+    return vNodesCopy[GetRandInt(vNodesCopy.size())];
 }

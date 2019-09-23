@@ -33,6 +33,7 @@ successful receipt, "requester.Rejected(...)" to indicate a bad object (request 
 #include "stat.h"
 
 #include <atomic>
+#include <chrono>
 
 // Max requests allowed in a 10 minute window
 static const uint8_t MAX_THINTYPE_OBJECT_REQUESTS = 100;
@@ -47,6 +48,7 @@ extern unsigned int MIN_BLK_REQUEST_RETRY_INTERVAL;
 static const unsigned int DEFAULT_MIN_BLK_REQUEST_RETRY_INTERVAL = 5 * 1000 * 1000;
 // Which peers have mempool synchronization in-flight?
 extern std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
+extern std::chrono::time_point<std::chrono::high_resolution_clock> lastMempoolSync;
 extern CCriticalSection cs_mempoolsync;
 
 class CNode;
