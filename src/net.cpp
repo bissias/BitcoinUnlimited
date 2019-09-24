@@ -3262,6 +3262,10 @@ void CNode::ReadConfigFromXVersion()
     num = xVersion.as_u64c(XVer::BU_MEMPOOL_DESCENDANT_SIZE_LIMIT);
     if (num)
         nLimitDescendantSize = num;
+
+    canSyncMempoolWithPeers = (xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC) == 1);
+    nMempoolSyncMinVersionSupported = xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC_MIN_VERSION_SUPPORTED);
+    nMempoolSyncMaxVersionSupported = xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC_MAX_VERSION_SUPPORTED);
 }
 
 

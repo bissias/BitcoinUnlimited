@@ -391,9 +391,9 @@ CMempoolSyncInfo GetMempoolSyncInfo()
 
 uint64_t NegotiateMempoolSyncVersion(CNode *pfrom)
 {
-    uint64_t peerMin = pfrom->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC_MIN_VERSION_SUPPORTED);
+    uint64_t peerMin = pfrom->nMempoolSyncMinVersionSupported;
     uint64_t selfMin = mempoolSyncMinVersionSupported.Value();
-    uint64_t peerMax = pfrom->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC_MAX_VERSION_SUPPORTED);
+    uint64_t peerMax = pfrom->nMempoolSyncMaxVersionSupported;
     uint64_t selfMax = mempoolSyncMaxVersionSupported.Value();
 
     uint64_t upper = (uint64_t)std::min(peerMax, selfMax);
@@ -412,7 +412,7 @@ CNode *SelectMempoolSyncPeer(std::vector<CNode *> vNodesCopy)
     for (auto node : vNodesCopy)
     {
         // Skip if mempool sync is not supported
-        if (!node->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC))
+        if (!node->canSyncMempoolWithPeers)
             continue;
 
         // Skip if version cannot be negotiated
@@ -431,10 +431,7 @@ CNode *SelectMempoolSyncPeer(std::vector<CNode *> vNodesCopy)
 
         // Skip if node is in IBD
         if ((nCommonHeight < chainActive.Tip()->nHeight - 10) && (nSyncHeight < chainActive.Tip()->nHeight - 10))
-        {
-            LOG(MPOOLSYNC, "Skipping mempool sync because IBD is active for peer=%s\n", node->GetLogName());
             continue;
-        }
 
         vSyncableNodes.push_back(node);
     }

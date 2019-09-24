@@ -1202,7 +1202,7 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
             std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::high_resolution_clock::now() - mempoolSyncRequested[pto].lastUpdated)
                     .count() > MEMPOOLSYNC_FREQ_US) &&
-        pto->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC))
+        pto->canSyncMempoolWithPeers)
     {
         // Similar to Graphene, receiver must send CMempoolInfo
         CInv inv;
