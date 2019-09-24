@@ -4,6 +4,7 @@
 
 #include "blockrelay/mempool_sync.h"
 #include "dosman.h"
+#include "nodestate.h"
 #include "txadmission.h"
 #include "txmempool.h"
 #include "txorphanpool.h"
@@ -406,6 +407,41 @@ uint64_t NegotiateMempoolSyncVersion(CNode *pfrom)
 
 CNode *SelectMempoolSyncPeer(std::vector<CNode *> vNodesCopy)
 {
-    // randomly select node with whom to request mempoolsync
-    return vNodesCopy[GetRandInt(vNodesCopy.size())];
+    std::vector<CNode *> vSyncableNodes;
+
+    for (auto node : vNodesCopy)
+    {
+        // Skip if mempool sync is not supported
+        if (!node->xVersion.as_u64c(XVer::BU_MEMPOOL_SYNC))
+            continue;
+
+        // Skip if version cannot be negotiated
+        try
+        {
+            NegotiateMempoolSyncVersion(node);
+        }
+        catch (std::runtime_error &e)
+        {
+            continue;
+        }
+
+        CNodeStateAccessor state(nodestate, node->GetId());
+        int nCommonHeight = state->pindexLastCommonBlock ? state->pindexLastCommonBlock->nHeight : -1;
+        int nSyncHeight = state->pindexBestKnownBlock ? state->pindexBestKnownBlock->nHeight : -1;
+
+        // Skip if node is in IBD
+        if ((nCommonHeight < chainActive.Tip()->nHeight - 10) && (nSyncHeight < chainActive.Tip()->nHeight - 10))
+        {
+            LOG(MPOOLSYNC, "Skipping mempool sync because IBD is active for peer=%s\n", node->GetLogName());
+            continue;
+        }
+
+        vSyncableNodes.push_back(node);
+    }
+
+    // Randomly select node with whom to request mempoolsync
+    if (vSyncableNodes.size() > 0)
+        return vSyncableNodes[GetRandInt(vSyncableNodes.size())];
+    else
+        return nullptr;
 }
