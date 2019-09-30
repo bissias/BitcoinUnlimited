@@ -97,7 +97,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
         std::vector<uint256> mempoolTxHashes;
         // cycle through mempool txs in order of ancestor_score
         {
-            READLOCK(mempool.cs);
+            READLOCK(mempool.cs_txmempool);
 
             int64_t nRemainingMempoolBytes = mempoolinfo.nRemainingMempoolBytes;
             typename CTxMemPool::indexed_transaction_set::index<ancestor_score>::type::iterator it =
@@ -335,7 +335,7 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
 void GetMempoolTxHashes(std::vector<uint256> &mempoolTxHashes)
 {
     {
-        READLOCK(orphanpool.cs);
+        READLOCK(orphanpool.cs_orphanpool);
         for (auto &kv : orphanpool.mapOrphanTransactions)
         {
             mempoolTxHashes.push_back(kv.first);
@@ -379,7 +379,7 @@ CMempoolSyncInfo GetMempoolSyncInfo()
     // Calculate how many bytes of space remain in the mempool
     uint64_t nRemainingMempoolTxBytes = nMempoolMaxTxBytes;
     {
-        READLOCK(mempool.cs);
+        READLOCK(mempool.cs_txmempool);
         for (const CTxMemPoolEntry &e : mempool.mapTx)
         {
             nRemainingMempoolTxBytes += e.GetTx().GetTxSize();
