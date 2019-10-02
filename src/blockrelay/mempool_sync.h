@@ -17,7 +17,7 @@ const uint64_t DEFAULT_MEMPOOL_SYNC_MAX_VERSION_SUPPORTED = 0;
 const uint32_t IBLT_ENTROPY = 13;
 // any value greater than 2 will use SipHash
 const uint64_t SHORT_ID_VERSION = 2;
-// frequency of synchronization (per peer) in milliseconds
+// frequency of synchronization (per peer) in microseconds
 const int64_t MEMPOOLSYNC_FREQ_US = 30 * 1e6;
 const int64_t MEMPOOLSYNC_FREQ_GRACE_US = 5 * 1e6;
 // Use CVariableFastFilter if true, otherwise use CBloomFilter
