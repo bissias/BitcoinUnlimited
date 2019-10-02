@@ -89,7 +89,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
             return error("Mempool sync requested less than %d mu seconds ago from peer %s\n", MEMPOOLSYNC_FREQ_US,
                 pfrom->GetLogName());
         }
-        
+
         // Record request
         mempoolSyncResponded[pfrom] = CMempoolSyncState(
             std::chrono::high_resolution_clock::now(), mempoolinfo.shorttxidk0, mempoolinfo.shorttxidk1, false);
@@ -195,8 +195,8 @@ bool CMempoolSync::process(CNode *pfrom)
 
         for (const uint256 &hash : mempoolTxHashes)
         {
-            uint64_t cheapHash = GetShortID(
-                mempoolSyncRequested[pfrom].shorttxidk0, mempoolSyncRequested[pfrom].shorttxidk1, hash, SHORT_ID_VERSION);
+            uint64_t cheapHash = GetShortID(mempoolSyncRequested[pfrom].shorttxidk0,
+                mempoolSyncRequested[pfrom].shorttxidk1, hash, SHORT_ID_VERSION);
             mapPartialTxHash.insert(std::make_pair(cheapHash, hash));
         }
     }
@@ -274,7 +274,8 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         if (mempoolSyncResponded[pfrom].completed)
         {
             dosMan.Misbehaving(pfrom, 100);
-            return error("Received getmemsynctx from peer %s but mempool sync has already completed", pfrom->GetLogName());
+            return error(
+                "Received getmemsynctx from peer %s but mempool sync has already completed", pfrom->GetLogName());
         }
 
         LOG(MPOOLSYNC, "Received getmemsynctx from peer=%s requesting %d transactions\n", pfrom->GetLogName(),
@@ -287,17 +288,33 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         // Note that only those still in the mempool will be located
         for (auto &hash : mempoolTxHashes)
         {
-            uint64_t cheapHash = GetShortID(
-                mempoolSyncResponded[pfrom].shorttxidk0, mempoolSyncResponded[pfrom].shorttxidk1, hash, SHORT_ID_VERSION);
+            uint64_t cheapHash = GetShortID(mempoolSyncResponded[pfrom].shorttxidk0,
+                mempoolSyncResponded[pfrom].shorttxidk1, hash, SHORT_ID_VERSION);
 
             if (reqMempoolSyncTx.setCheapHashesToRequest.count(cheapHash) == 0)
                 continue;
 
+            // Check mempool first
             auto txRef = mempool.get(hash);
-            if (txRef == nullptr)
-                continue;
+            if (txRef != nullptr)
+                vTx.push_back(txRef);
 
-            vTx.push_back(txRef);
+            // Then CommitQ
+            txRef = CommitQGet(hash);
+            if (txRef != nullptr)
+                vTx.push_back(CommitQGet(hash));
+
+            // Finally orphanpool
+            {
+                READLOCK(orphanpool.cs_orphanpool);
+
+                std::map<uint256, CTxOrphanPool::COrphanTx>::iterator iter =
+                    orphanpool.mapOrphanTransactions.find(hash);
+                if (iter != orphanpool.mapOrphanTransactions.end())
+                {
+                    vTx.push_back(iter->second.ptx);
+                }
+            }
         }
     }
 
@@ -337,7 +354,8 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         if (mempoolSyncRequested[pfrom].completed)
         {
             dosMan.Misbehaving(pfrom, 100);
-            return error("Received memsynctx from peer %s but transactions have already been sent", pfrom->GetLogName());
+            return error(
+                "Received memsynctx from peer %s but transactions have already been sent", pfrom->GetLogName());
         }
     }
 
@@ -367,6 +385,14 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
 
 void GetMempoolTxHashes(std::vector<uint256> &mempoolTxHashes)
 {
+    {
+        boost::unique_lock<boost::mutex> lock(csCommitQ);
+        for (auto &kv : *txCommitQ)
+        {
+            mempoolTxHashes.push_back(kv.first);
+        }
+    }
+
     {
         READLOCK(orphanpool.cs_orphanpool);
         for (auto &kv : orphanpool.mapOrphanTransactions)
