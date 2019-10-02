@@ -1196,7 +1196,7 @@ void CRequestManager::FindNextBlocksToDownload(CNode *node, unsigned int count, 
 
 void CRequestManager::RequestMempoolSync(CNode *pto)
 {
-    LOCK(cs_mempoolsync);
+    LOCK(cs_mempoolsync_init);
 
     if ((mempoolSyncRequested.count(pto) == 0 ||
             std::chrono::duration_cast<std::chrono::microseconds>(
