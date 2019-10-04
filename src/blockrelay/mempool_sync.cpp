@@ -302,7 +302,7 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
             // Then CommitQ
             txRef = CommitQGet(hash);
             if (txRef != nullptr)
-                vTx.push_back(CommitQGet(hash));
+                vTx.push_back(txRef);
 
             // Finally orphanpool
             {
