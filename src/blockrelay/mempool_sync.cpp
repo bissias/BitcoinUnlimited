@@ -111,10 +111,10 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
             {
                 size_t nTxSize = it->GetTx().GetTxSize();
                 int64_t nFee = it->GetFee();
-                uint64_t nSatoshiPerK = (uint64_t)(1000 * nFee / nTxSize);
+                CFeeRate feeRate(nFee, nTxSize);
 
                 // Skip tx if fee rate is too low
-                if (nSatoshiPerK < mempoolinfo.nSatoshiPerK)
+                if (feeRate.GetFeePerK() < (int)mempoolinfo.nSatoshiPerK)
                     continue;
 
                 mempoolTxHashes.push_back(it->GetTx().GetHash());
