@@ -49,7 +49,7 @@ static const unsigned int DEFAULT_MIN_BLK_REQUEST_RETRY_INTERVAL = 5 * 1000 * 10
 // Which peers have mempool synchronization in-flight?
 extern std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
 extern std::chrono::time_point<std::chrono::high_resolution_clock> lastMempoolSync;
-extern CCriticalSection cs_mempoolsync_init;
+extern CCriticalSection cs_mempoolsync;
 
 class CNode;
 

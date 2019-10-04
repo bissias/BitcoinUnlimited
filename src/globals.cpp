@@ -479,7 +479,6 @@ CCriticalSection cs_mempoolsync;
 std::map<CNode *, CMempoolSyncState> mempoolSyncRequested GUARDED_BY(cs_mempoolsync);
 std::map<CNode *, CMempoolSyncState> mempoolSyncResponded GUARDED_BY(cs_mempoolsync);
 std::chrono::time_point<std::chrono::high_resolution_clock> lastMempoolSync = std::chrono::high_resolution_clock::now();
-CCriticalSection cs_mempoolsync_init;
 
 // Are we shutting down. Replaces boost interrupts.
 std::atomic<bool> shutdown_threads{false};
