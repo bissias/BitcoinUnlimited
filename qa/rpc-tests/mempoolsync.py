@@ -45,16 +45,19 @@ class MempoolSyncTest(BitcoinTestFramework):
         self.sync_all()
 
         logging.info("Send 10 transactions from node0 (to its own address)")
+        addr = self.nodes[0].getnewaddress()
         for i in range(10):
-            self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), Decimal("10"))
+            self.nodes[0].sendtoaddress(addr, Decimal("10"))
 
         logging.info("Send 10 transactions from node1 (to its own address)")
+        addr = self.nodes[1].getnewaddress()
         for i in range(10):
-            self.nodes[1].sendtoaddress(self.nodes[1].getnewaddress(), Decimal("10"))
+            self.nodes[1].sendtoaddress(addr, Decimal("10"))
 
         logging.info("Send 10 transactions from node2 (to its own address)")
+        addr = self.nodes[2].getnewaddress()
         for i in range(10):
-            self.nodes[2].sendtoaddress(self.nodes[2].getnewaddress(), Decimal("10"))
+            self.nodes[2].sendtoaddress(addr, Decimal("10"))
 
         waitFor(180, lambda: len(self.nodes[0].getrawmempool()) == 30)
         waitFor(180, lambda: len(self.nodes[1].getrawmempool()) == 30)
