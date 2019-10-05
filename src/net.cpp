@@ -144,7 +144,7 @@ extern std::map<CNetAddr, ConnectionHistory> mapInboundConnectionTracker;
 extern CCriticalSection cs_mapInboundConnectionTracker;
 
 // Mempool synchronization
-extern std::chrono::time_point<std::chrono::high_resolution_clock> lastMempoolSync;
+extern uint64_t lastMempoolSync;
 
 // Signals for message handling
 extern CNodeSignals g_signals;
@@ -2283,10 +2283,7 @@ void ThreadMessageHandler()
 
         bool fSleep = true;
 
-        if ((std::chrono::duration_cast<std::chrono::microseconds>(
-                 std::chrono::high_resolution_clock::now() - lastMempoolSync)
-                    .count() > MEMPOOLSYNC_FREQ_US) &&
-            vNodesCopy.size() > 0)
+        if (((GetStopwatchMicros() - lastMempoolSync) > MEMPOOLSYNC_FREQ_US) && vNodesCopy.size() > 0)
         {
             // select node from whom to request mempool sync
             CNode *syncPeer = SelectMempoolSyncPeer(vNodesCopy);

@@ -43,6 +43,7 @@
 #include "ui_interface.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include "utiltime.h"
 #include "validationinterface.h"
 #include "version.h"
 #include "versionbits.h"
@@ -478,7 +479,7 @@ ThinTypeRelay thinrelay;
 CCriticalSection cs_mempoolsync;
 std::map<CNode *, CMempoolSyncState> mempoolSyncRequested GUARDED_BY(cs_mempoolsync);
 std::map<CNode *, CMempoolSyncState> mempoolSyncResponded GUARDED_BY(cs_mempoolsync);
-std::chrono::time_point<std::chrono::high_resolution_clock> lastMempoolSync = std::chrono::high_resolution_clock::now();
+uint64_t lastMempoolSync = GetStopwatchMicros();
 
 // Are we shutting down. Replaces boost interrupts.
 std::atomic<bool> shutdown_threads{false};

@@ -28,6 +28,7 @@
 #include "unlimited.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include "utiltime.h"
 #include "validation/validation.h"
 #include "validationinterface.h"
 #include "version.h"
@@ -37,7 +38,6 @@
 #include <boost/accumulators/statistics/stats.hpp>
 #include <boost/accumulators/statistics/variance.hpp>
 #include <boost/lexical_cast.hpp>
-#include <chrono>
 #include <inttypes.h>
 #include <thread>
 
@@ -1198,11 +1198,7 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
 {
     LOCK(cs_mempoolsync);
 
-    if ((mempoolSyncRequested.count(pto) == 0 ||
-            std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::high_resolution_clock::now() - mempoolSyncRequested[pto].lastUpdated)
-                    .count() > MEMPOOLSYNC_FREQ_US) &&
-        pto->canSyncMempoolWithPeers)
+    if ((mempoolSyncRequested.count(pto) == 0 || ((GetStopwatchMicros() - mempoolSyncRequested[pto].lastUpdated) > MEMPOOLSYNC_FREQ_US)) && pto->canSyncMempoolWithPeers)
     {
         // Similar to Graphene, receiver must send CMempoolInfo
         CInv inv;
@@ -1213,11 +1209,10 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
         ss << inv;
         ss << receiverMemPoolInfo;
 
-        mempoolSyncRequested[pto] = CMempoolSyncState(std::chrono::high_resolution_clock::now(),
-            receiverMemPoolInfo.shorttxidk0, receiverMemPoolInfo.shorttxidk1, false);
+        mempoolSyncRequested[pto] = CMempoolSyncState(GetStopwatchMicros(), receiverMemPoolInfo.shorttxidk0, receiverMemPoolInfo.shorttxidk1, false);
         pto->PushMessage(NetMsgType::GET_MEMPOOLSYNC, ss);
         LOG(MPOOLSYNC, "Requesting mempool synchronization from peer %s\n", pto->GetLogName());
-        lastMempoolSync = std::chrono::high_resolution_clock::now();
+        lastMempoolSync = GetStopwatchMicros();
     }
 }
 

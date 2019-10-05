@@ -9,9 +9,9 @@
 #include "txmempool.h"
 #include "txorphanpool.h"
 #include "util.h"
+#include "utiltime.h"
 #include "xversionkeys.h"
 
-#include <chrono>
 #include <random>
 
 extern CTxMemPool mempool;
@@ -80,10 +80,8 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
     {
         LOCK(cs_mempoolsync);
 
-        if (mempoolSyncResponded.count(pfrom) > 0 &&
-            std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::high_resolution_clock::now() - mempoolSyncResponded[pfrom].lastUpdated)
-                    .count() < MEMPOOLSYNC_FREQ_US - MEMPOOLSYNC_FREQ_GRACE_US)
+        if (mempoolSyncResponded.count(pfrom) > 0 && ((GetStopwatchMicros() - mempoolSyncResponded[pfrom].lastUpdated) <
+                                                         MEMPOOLSYNC_FREQ_US - MEMPOOLSYNC_FREQ_GRACE_US))
         {
             dosMan.Misbehaving(pfrom, 100);
             return error("Mempool sync requested less than %d mu seconds ago from peer %s\n", MEMPOOLSYNC_FREQ_US,
@@ -91,8 +89,8 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
         }
 
         // Record request
-        mempoolSyncResponded[pfrom] = CMempoolSyncState(
-            std::chrono::high_resolution_clock::now(), mempoolinfo.shorttxidk0, mempoolinfo.shorttxidk1, false);
+        mempoolSyncResponded[pfrom] =
+            CMempoolSyncState(GetStopwatchMicros(), mempoolinfo.shorttxidk0, mempoolinfo.shorttxidk1, false);
     }
 
     if (inv.type == MSG_MEMPOOLSYNC)

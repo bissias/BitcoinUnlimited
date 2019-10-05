@@ -8,8 +8,7 @@
 #include "blockrelay/blockrelay_common.h"
 #include "blockrelay/graphene.h"
 #include "consensus/consensus.h"
-
-#include <chrono>
+#include "utiltime.h"
 
 const uint64_t DEFAULT_MEMPOOL_SYNC_MIN_VERSION_SUPPORTED = 0;
 const uint64_t DEFAULT_MEMPOOL_SYNC_MAX_VERSION_SUPPORTED = 0;
@@ -26,23 +25,17 @@ const bool COMPUTE_OPTIMIZED = true;
 class CMempoolSyncState
 {
 public:
-    std::chrono::time_point<std::chrono::high_resolution_clock> lastUpdated;
+    uint64_t lastUpdated;
     uint64_t shorttxidk0;
     uint64_t shorttxidk1;
     bool completed;
 
 public:
-    CMempoolSyncState(std::chrono::time_point<std::chrono::high_resolution_clock> _lastUpdated,
-        uint64_t _shorttxidk0,
-        uint64_t _shorttxidk1,
-        bool _completed)
+    CMempoolSyncState(uint64_t _lastUpdated, uint64_t _shorttxidk0, uint64_t _shorttxidk1, bool _completed)
         : lastUpdated(_lastUpdated), shorttxidk0(_shorttxidk0), shorttxidk1(_shorttxidk1), completed(_completed)
     {
     }
-    CMempoolSyncState()
-        : lastUpdated(std::chrono::high_resolution_clock::now()), shorttxidk0(0), shorttxidk1(0), completed(false)
-    {
-    }
+    CMempoolSyncState() : lastUpdated(GetStopwatchMicros()), shorttxidk0(0), shorttxidk1(0), completed(false) {}
 };
 
 extern std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
