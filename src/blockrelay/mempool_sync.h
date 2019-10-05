@@ -22,12 +22,16 @@ const int64_t MEMPOOLSYNC_FREQ_GRACE_US = 5 * 1e6;
 // Use CVariableFastFilter if true, otherwise use CBloomFilter
 const bool COMPUTE_OPTIMIZED = true;
 
+/** State of mempool sync for a given peer. Can be used to track either responses or requests. */
 class CMempoolSyncState
 {
 public:
+    /** Microseconds since this peer last responded / requested sync. */
     uint64_t lastUpdated;
+    /** SipHash keys as determined by sync requester. */
     uint64_t shorttxidk0;
     uint64_t shorttxidk1;
+    /** Flag indicating that all appropriate messages have been received from peer.*/
     bool completed;
 
 public:
@@ -41,13 +45,18 @@ public:
 extern std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
 extern std::map<CNode *, CMempoolSyncState> mempoolSyncResponded;
 
+/** Mempool sync related metadata sent from requester to responder.*/
 class CMempoolSyncInfo
 {
 public:
+    /** Number of transactions in requester's mempool. */
     uint64_t nTxInMempool;
+    /** The number of bytes of space remaining in requester's mempool. */
     uint64_t nRemainingMempoolBytes;
+    /** SipHash keys to be used for generating cheap hashes. */
     uint64_t shorttxidk0;
     uint64_t shorttxidk1;
+    /** The minimum number of satoshi's per KB for transactions accommodated by requester. */
     uint64_t nSatoshiPerK;
 
 public:
@@ -71,11 +80,15 @@ public:
     }
 };
 
+/** Mempool sync payload sent to requester by responder. */
 class CMempoolSync
 {
 public:
+    /** Number of transactions in the requester's mempool. */
     uint64_t nSenderMempoolTxs;
+    /** Graphene set containing transactions from responder's mempool. */
     std::shared_ptr<CGrapheneSet> pGrapheneSet;
+    /** Negotiated mempool sync version. */
     uint64_t version;
 
 public:
@@ -120,6 +133,7 @@ public:
     bool process(CNode *pfrom, std::string strCommand, std::shared_ptr<CBlockThinRelay> pblock);
 };
 
+/** Payload of cheap hashes corresponding to transactions missing from requester. */
 class CRequestMempoolSyncTx
 {
 public:
@@ -146,9 +160,11 @@ public:
     }
 };
 
+/** Payload of transactions corresponding to cheap hashes requested by requester. */
 class CMempoolSyncTx
 {
 public:
+    /** Missing transactions. */
     std::vector<CTransactionRef> vTx;
 
 public:
