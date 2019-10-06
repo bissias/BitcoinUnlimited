@@ -1198,7 +1198,9 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
 {
     LOCK(cs_mempoolsync);
 
-    if ((mempoolSyncRequested.count(pto) == 0 || ((GetStopwatchMicros() - mempoolSyncRequested[pto].lastUpdated) > MEMPOOLSYNC_FREQ_US)) && pto->canSyncMempoolWithPeers)
+    if ((mempoolSyncRequested.count(pto) == 0 ||
+            ((GetStopwatchMicros() - mempoolSyncRequested[pto].lastUpdated) > MEMPOOLSYNC_FREQ_US)) &&
+        pto->canSyncMempoolWithPeers)
     {
         // Similar to Graphene, receiver must send CMempoolInfo
         CInv inv;
@@ -1209,7 +1211,8 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
         ss << inv;
         ss << receiverMemPoolInfo;
 
-        mempoolSyncRequested[pto] = CMempoolSyncState(GetStopwatchMicros(), receiverMemPoolInfo.shorttxidk0, receiverMemPoolInfo.shorttxidk1, false);
+        mempoolSyncRequested[pto] = CMempoolSyncState(
+            GetStopwatchMicros(), receiverMemPoolInfo.shorttxidk0, receiverMemPoolInfo.shorttxidk1, false);
         pto->PushMessage(NetMsgType::GET_MEMPOOLSYNC, ss);
         LOG(MPOOLSYNC, "Requesting mempool synchronization from peer %s\n", pto->GetLogName());
         lastMempoolSync = GetStopwatchMicros();
