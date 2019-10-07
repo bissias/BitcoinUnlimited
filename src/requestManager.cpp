@@ -1197,9 +1197,10 @@ void CRequestManager::FindNextBlocksToDownload(CNode *node, unsigned int count, 
 void CRequestManager::RequestMempoolSync(CNode *pto)
 {
     LOCK(cs_mempoolsync);
+    NodeId nodeId = pto->GetId();
 
-    if ((mempoolSyncRequested.count(pto) == 0 ||
-            ((GetStopwatchMicros() - mempoolSyncRequested[pto].lastUpdated) > MEMPOOLSYNC_FREQ_US)) &&
+    if ((mempoolSyncRequested.count(nodeId) == 0 ||
+            ((GetStopwatchMicros() - mempoolSyncRequested[nodeId].lastUpdated) > MEMPOOLSYNC_FREQ_US)) &&
         pto->canSyncMempoolWithPeers)
     {
         // Similar to Graphene, receiver must send CMempoolInfo
@@ -1211,10 +1212,11 @@ void CRequestManager::RequestMempoolSync(CNode *pto)
         ss << inv;
         ss << receiverMemPoolInfo;
 
-        mempoolSyncRequested[pto] = CMempoolSyncState(
+        mempoolSyncRequested[nodeId] = CMempoolSyncState(
             GetStopwatchMicros(), receiverMemPoolInfo.shorttxidk0, receiverMemPoolInfo.shorttxidk1, false);
         pto->PushMessage(NetMsgType::GET_MEMPOOLSYNC, ss);
         LOG(MPOOLSYNC, "Requesting mempool synchronization from peer %s\n", pto->GetLogName());
+
         lastMempoolSync = GetStopwatchMicros();
     }
 }

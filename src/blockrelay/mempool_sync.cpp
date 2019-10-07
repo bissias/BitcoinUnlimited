@@ -3,7 +3,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "blockrelay/mempool_sync.h"
+#include "connmgr.h"
 #include "dosman.h"
+#include "net.h"
 #include "nodestate.h"
 #include "txadmission.h"
 #include "txmempool.h"
@@ -19,6 +21,7 @@ extern CTweak<uint64_t> syncMempoolWithPeers;
 extern CTweak<uint64_t> mempoolSyncMinVersionSupported;
 extern CTweak<uint64_t> mempoolSyncMaxVersionSupported;
 extern CCriticalSection cs_mempoolsync;
+extern uint64_t lastMempoolSyncClear;
 
 CMempoolSyncInfo::CMempoolSyncInfo(uint64_t _nTxInMempool,
     uint64_t _nRemainingMempoolBytes,
@@ -61,6 +64,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
     CMempoolSyncInfo mempoolinfo;
     CInv inv;
     vRecv >> inv >> mempoolinfo;
+    NodeId nodeId = pfrom->GetId();
 
     // Message consistency checking
     if (!(inv.type == MSG_MEMPOOLSYNC))
@@ -80,8 +84,9 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
     {
         LOCK(cs_mempoolsync);
 
-        if (mempoolSyncResponded.count(pfrom) > 0 && ((GetStopwatchMicros() - mempoolSyncResponded[pfrom].lastUpdated) <
-                                                         MEMPOOLSYNC_FREQ_US - MEMPOOLSYNC_FREQ_GRACE_US))
+        if (mempoolSyncResponded.count(nodeId) > 0 &&
+            ((GetStopwatchMicros() - mempoolSyncResponded[nodeId].lastUpdated) <
+                MEMPOOLSYNC_FREQ_US - MEMPOOLSYNC_FREQ_GRACE_US))
         {
             dosMan.Misbehaving(pfrom, 100);
             return error("Mempool sync requested less than %d mu seconds ago from peer %s\n", MEMPOOLSYNC_FREQ_US,
@@ -89,7 +94,7 @@ bool HandleMempoolSyncRequest(CDataStream &vRecv, CNode *pfrom)
         }
 
         // Record request
-        mempoolSyncResponded[pfrom] =
+        mempoolSyncResponded[nodeId] =
             CMempoolSyncState(GetStopwatchMicros(), mempoolinfo.shorttxidk0, mempoolinfo.shorttxidk1, false);
     }
 
@@ -153,6 +158,7 @@ bool CMempoolSync::ReceiveMempoolSync(CDataStream &vRecv, CNode *pfrom, std::str
     CMempoolSync tmp;
     vRecv >> tmp;
     auto mempoolSync = std::make_shared<CMempoolSync>(std::forward<CMempoolSync>(tmp));
+    NodeId nodeId = pfrom->GetId();
 
     LOG(MPOOLSYNC, "Received mempool sync from peer %s\n", pfrom->GetLogName());
 
@@ -160,14 +166,14 @@ bool CMempoolSync::ReceiveMempoolSync(CDataStream &vRecv, CNode *pfrom, std::str
     {
         LOCK(cs_mempoolsync);
 
-        if (!(mempoolSyncRequested.count(pfrom) == 1))
+        if (!(mempoolSyncRequested.count(nodeId) == 1))
         {
             dosMan.Misbehaving(pfrom, 10);
             return error("Received unrequested mempool sync from peer %s\n", pfrom->GetLogName());
         }
 
         // Do not proceed if this request has already been processed
-        if (mempoolSyncRequested[pfrom].completed)
+        if (mempoolSyncRequested[nodeId].completed)
         {
             dosMan.Misbehaving(pfrom, 100);
             return error(
@@ -180,6 +186,7 @@ bool CMempoolSync::ReceiveMempoolSync(CDataStream &vRecv, CNode *pfrom, std::str
 
 bool CMempoolSync::process(CNode *pfrom)
 {
+    NodeId nodeId = pfrom->GetId();
     std::set<uint256> passingTxHashes;
     std::map<uint64_t, uint256> mapPartialTxHash;
     std::set<uint64_t> setHashesToRequest;
@@ -193,8 +200,8 @@ bool CMempoolSync::process(CNode *pfrom)
 
         for (const uint256 &hash : mempoolTxHashes)
         {
-            uint64_t cheapHash = GetShortID(mempoolSyncRequested[pfrom].shorttxidk0,
-                mempoolSyncRequested[pfrom].shorttxidk1, hash, SHORT_ID_VERSION);
+            uint64_t cheapHash = GetShortID(mempoolSyncRequested[nodeId].shorttxidk0,
+                mempoolSyncRequested[nodeId].shorttxidk1, hash, SHORT_ID_VERSION);
             mapPartialTxHash.insert(std::make_pair(cheapHash, hash));
         }
     }
@@ -237,7 +244,7 @@ bool CMempoolSync::process(CNode *pfrom)
     {
         LOCK(cs_mempoolsync);
 
-        mempoolSyncRequested[pfrom].completed = true;
+        mempoolSyncRequested[nodeId].completed = true;
     }
 
     LOG(MPOOLSYNC, "Completeing mempool sync with %s; no missing transactions\n", pfrom->GetLogName());
@@ -249,6 +256,7 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
 {
     CRequestMempoolSyncTx reqMempoolSyncTx;
     vRecv >> reqMempoolSyncTx;
+    NodeId nodeId = pfrom->GetId();
 
     // Message consistency checking
     if (reqMempoolSyncTx.setCheapHashesToRequest.empty())
@@ -262,14 +270,14 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     {
         LOCK(cs_mempoolsync);
 
-        if (mempoolSyncResponded.count(pfrom) == 0)
+        if (mempoolSyncResponded.count(nodeId) == 0)
         {
             dosMan.Misbehaving(pfrom, 10);
             return error("Received getmemsynctx from peer %s but mempool sync is not in progress", pfrom->GetLogName());
         }
 
         // Already processed requested transactions
-        if (mempoolSyncResponded[pfrom].completed)
+        if (mempoolSyncResponded[nodeId].completed)
         {
             dosMan.Misbehaving(pfrom, 100);
             return error(
@@ -286,8 +294,8 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
         // Note that only those still in the mempool will be located
         for (auto &hash : mempoolTxHashes)
         {
-            uint64_t cheapHash = GetShortID(mempoolSyncResponded[pfrom].shorttxidk0,
-                mempoolSyncResponded[pfrom].shorttxidk1, hash, SHORT_ID_VERSION);
+            uint64_t cheapHash = GetShortID(mempoolSyncResponded[nodeId].shorttxidk0,
+                mempoolSyncResponded[nodeId].shorttxidk1, hash, SHORT_ID_VERSION);
 
             if (reqMempoolSyncTx.setCheapHashesToRequest.count(cheapHash) == 0)
                 continue;
@@ -326,7 +334,7 @@ bool CRequestMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     {
         LOCK(cs_mempoolsync);
 
-        mempoolSyncResponded[pfrom].completed = true;
+        mempoolSyncResponded[nodeId].completed = true;
     }
 
     return true;
@@ -337,19 +345,20 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     std::string strCommand = NetMsgType::MEMPOOLSYNCTX;
     CMempoolSyncTx mempoolSyncTx;
     vRecv >> mempoolSyncTx;
+    NodeId nodeId = pfrom->GetId();
 
     {
         LOCK(cs_mempoolsync);
 
         // Do not process unrequested memsynctx.
-        if (mempoolSyncRequested.count(pfrom) == 0)
+        if (mempoolSyncRequested.count(nodeId) == 0)
         {
             dosMan.Misbehaving(pfrom, 10);
             return error("Received memsynctx from peer %s but mempool sync is not in progress", pfrom->GetLogName());
         }
 
         // Already received requested transactions
-        if (mempoolSyncRequested[pfrom].completed)
+        if (mempoolSyncRequested[nodeId].completed)
         {
             dosMan.Misbehaving(pfrom, 100);
             return error(
@@ -375,7 +384,7 @@ bool CMempoolSyncTx::HandleMessage(CDataStream &vRecv, CNode *pfrom)
     {
         LOCK(cs_mempoolsync);
 
-        mempoolSyncRequested[pfrom].completed = true;
+        mempoolSyncRequested[nodeId].completed = true;
     }
 
     return true;
@@ -498,4 +507,34 @@ CNode *SelectMempoolSyncPeer(std::vector<CNode *> vNodesCopy)
         return vSyncableNodes[GetRandInt(vSyncableNodes.size())];
     else
         return nullptr;
+}
+
+void ClearDisconnectedFromMempoolSyncMaps()    
+{
+    LOCK(cs_mempoolsync);
+
+    std::set<NodeId> toRemove;
+    for (auto idPair : mempoolSyncRequested)
+    {
+        if (!connmgr->FindNodeFromId(idPair.first))
+            toRemove.insert(idPair.first);
+    }
+
+    for (auto idPair : mempoolSyncResponded)
+    {
+        if (!connmgr->FindNodeFromId(idPair.first))
+            toRemove.insert(idPair.first);
+    }
+
+    if (toRemove.size() > 0)
+        LOG(MPOOLSYNC, "Mempool sync removing %d disconnected peers from sync maps\n", toRemove.size());
+
+    for (auto nId : toRemove)
+    {
+        if (mempoolSyncRequested.count(nId) > 0)
+            mempoolSyncRequested.erase(nId);
+
+        if (mempoolSyncResponded.count(nId) > 0)
+            mempoolSyncResponded.erase(nId);
+    }
 }

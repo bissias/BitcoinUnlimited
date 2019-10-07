@@ -46,7 +46,7 @@ extern unsigned int blkReqRetryInterval;
 extern unsigned int MIN_BLK_REQUEST_RETRY_INTERVAL;
 static const unsigned int DEFAULT_MIN_BLK_REQUEST_RETRY_INTERVAL = 5 * 1000 * 1000;
 // Which peers have mempool synchronization in-flight?
-extern std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
+extern std::map<NodeId, CMempoolSyncState> mempoolSyncRequested;
 extern uint64_t lastMempoolSync;
 extern CCriticalSection cs_mempoolsync;
 

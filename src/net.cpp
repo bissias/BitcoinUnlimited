@@ -145,6 +145,7 @@ extern CCriticalSection cs_mapInboundConnectionTracker;
 
 // Mempool synchronization
 extern uint64_t lastMempoolSync;
+extern uint64_t lastMempoolSyncClear;
 
 // Signals for message handling
 extern CNodeSignals g_signals;
@@ -2290,6 +2291,10 @@ void ThreadMessageHandler()
             if (!(syncPeer == nullptr))
                 requester.RequestMempoolSync(syncPeer);
         }
+
+        // Periodically clear mempool sync maps in case peers have disconnected
+        if (GetStopwatchMicros() - lastMempoolSyncClear > MEMPOOLSYNC_CLEAR_FREQ_US)
+            ClearDisconnectedFromMempoolSyncMaps();
 
         for (CNode *pnode : vNodesCopy)
         {

@@ -8,6 +8,7 @@
 #include "blockrelay/blockrelay_common.h"
 #include "blockrelay/graphene.h"
 #include "consensus/consensus.h"
+#include "net.h"
 #include "utiltime.h"
 
 const uint64_t DEFAULT_MEMPOOL_SYNC_MIN_VERSION_SUPPORTED = 0;
@@ -19,6 +20,8 @@ const uint64_t SHORT_ID_VERSION = 2;
 // frequency of synchronization (per peer) in microseconds
 const int64_t MEMPOOLSYNC_FREQ_US = 30 * 1e6;
 const int64_t MEMPOOLSYNC_FREQ_GRACE_US = 5 * 1e6;
+// frequency that CMempoolSyncState maps are cleared in microseconds
+const int64_t MEMPOOLSYNC_CLEAR_FREQ_US = 3600 * 1e6;
 // Use CVariableFastFilter if true, otherwise use CBloomFilter
 const bool COMPUTE_OPTIMIZED = true;
 
@@ -42,8 +45,8 @@ public:
     CMempoolSyncState() : lastUpdated(GetStopwatchMicros()), shorttxidk0(0), shorttxidk1(0), completed(false) {}
 };
 
-extern std::map<CNode *, CMempoolSyncState> mempoolSyncRequested;
-extern std::map<CNode *, CMempoolSyncState> mempoolSyncResponded;
+extern std::map<NodeId, CMempoolSyncState> mempoolSyncRequested;
+extern std::map<NodeId, CMempoolSyncState> mempoolSyncResponded;
 
 /** Mempool sync related metadata sent from requester to responder.*/
 class CMempoolSyncInfo
@@ -193,5 +196,6 @@ void GetMempoolTxHashes(std::vector<uint256> &mempoolTxHashes);
 CMempoolSyncInfo GetMempoolSyncInfo();
 uint64_t NegotiateMempoolSyncVersion(CNode *pfrom);
 CNode *SelectMempoolSyncPeer(std::vector<CNode *> vNodesCopy);
+void ClearDisconnectedFromMempoolSyncMaps();
 
 #endif // BITCOIN_MEMPOOL_SYNC_H
