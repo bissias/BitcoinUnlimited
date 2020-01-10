@@ -289,12 +289,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
             auto txr = *biter;
             bool done = false;
             {
-                READLOCK(mempool.cs);
+                READLOCK(mempool.cs_txmempool);
 
                 CTxMemPool::txiter txiter = mempool.mapTx.find(txr->GetHash());
                 const bool in_mempool = txiter != mempool.mapTx.end();
 
-                const bool in_block_already = inBlock.count(txr->GetHash()) > 0;
+                const bool in_block_already = inBlock.count(txiter) > 0;
                 DbgAssert(!in_block_already, pblocktemplate->delta_block = nullptr; break;);
 
                 if (in_mempool)
@@ -305,7 +305,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
             }
             if (!done)
             {
-                READLOCK(mempool.cs);
+                READLOCK(mempool.cs_txmempool);
                 CCoinsViewMemPool view(pcoinsTip, mempool);
                 CCoinsViewCache view_cache(&view);
 
@@ -326,7 +326,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
             // COZ_PROGRESS_NAMED("pre-adding delta block transaction");
         }
     }
-    READLOCK(mempool.cs);
+    READLOCK(mempool.cs_txmempool);
     {
         nHeight = pindexPrev->nHeight + 1;
 
@@ -355,7 +355,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
         LOGA("CreateNewBlock(): total size %llu txs: %llu fees: %lld sigops %u\n", nBlockSize, nBlockTx, nFees,
             nBlockSigOps);
 
-        bool canonical = enableCanonicalTxOrder.Value();
+        bool canonical = fCanonicalTxsOrder;
         // On BCH always allow overwite of enableCanonicalTxOrder but not for regtest
         if (IsNov2018Activated(Params().GetConsensus(), chainActive.Tip()))
         {
@@ -534,7 +534,7 @@ bool BlockAssembler::isStillDependent(CTxMemPool::txiter iter)
 {
     for (CTxMemPool::txiter parent : mempool.GetMemPoolParents(iter))
     {
-        if (!inBlock.count(parent->GetTx().GetHash()))
+        if (!inBlock.count(parent))
         {
             return true;
         }
@@ -677,7 +677,7 @@ void BlockAssembler::AddToBlock(std::vector<const CTxMemPoolEntry *> *vtxe, CTxM
     ++nBlockTx;
     nBlockSigOps += iter->GetSigOpCount();
     nFees += iter->GetFee();
-    inBlock.insert(iter->GetTx().GetHash());
+    inBlock.insert(iter);
 
     bool fPrintPriority = GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
     if (fPrintPriority)
@@ -699,7 +699,8 @@ void BlockAssembler::AddToBlock(std::vector<const CTxMemPoolEntry *> *vtxe, CTxM
     ++nBlockTx;
     nBlockSigOps += entry->GetSigOpCount();
     nFees += entry->GetFee();
-    inBlock.insert(entry->GetTx().GetHash());
+    CTxMemPool::txiter txiter = mempool.mapTx.find(entry->GetSharedTx()->GetHash());
+    inBlock.insert((CTxMemPool::txiter)(txiter));
     // COZ_PROGRESS_NAMED("AddToBlock2");
 }
 
@@ -728,7 +729,7 @@ void BlockAssembler::addScoreTxs(std::vector<const CTxMemPoolEntry *> *vtxe)
         }
 
         // If tx already in block, skip  (added by addPriorityTxs)
-        if (inBlock.count(iter->GetTx().GetHash()))
+        if (inBlock.count(iter))
         {
             continue;
         }
@@ -824,8 +825,9 @@ void BlockAssembler::addPackageTxs(std::vector<const CTxMemPoolEntry *> *vtxe, b
         CTxMemPool::setEntries ancestors;
         uint64_t nNoLimit = std::numeric_limits<uint64_t>::max();
         std::string dummy;
+        const CTxMemPoolEntry &entry = *iter;
         mempool._CalculateMemPoolAncestors(
-            *iter, ancestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, &inBlock, false);
+            entry, ancestors, nNoLimit, nNoLimit, nNoLimit, nNoLimit, dummy, &inBlock, false);
 
         // Include in the package the current txn we're working with
         ancestors.insert(iter);
@@ -933,7 +935,7 @@ void BlockAssembler::addPriorityTxs(std::vector<const CTxMemPoolEntry *> *vtxe)
         vecPriority.pop_back();
 
         // If tx already in block, skip
-        if (inBlock.count(iter->GetTx().GetHash()))
+        if (inBlock.count(iter))
         {
             // DbgAssert(false, ); // can happen for prio tx if delta block
             continue;

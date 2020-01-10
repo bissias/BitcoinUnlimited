@@ -802,7 +802,6 @@ UniValue mkblocktemplate(const UniValue &params,
             mempool.GetTransactionsUpdated(), nTransactionsUpdatedLast, GetTime(), nStart);
     }
     CBlockRef pblock = pblocktemplate->block; // pointer for convenience
-    const Consensus::Params &consensusParams = Params().GetConsensus();
 
     // Update nTime
     UpdateTime(pblock.get(), consensusParams, pindexPrev);
