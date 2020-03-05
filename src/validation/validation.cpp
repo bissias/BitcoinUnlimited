@@ -28,6 +28,8 @@
 
 #include <boost/scope_exit.hpp>
 
+
+extern std::map<uint256, ConstCDeltaBlockRef> known_dbs;
 extern CTweak<unsigned int> unconfPushAction;
 
 struct CBlockIndexWorkComparator
@@ -125,24 +127,13 @@ static ThresholdConditionCache warningcache[Consensus::MAX_VERSION_BITS_DEPLOYME
 
 bool CheckBlockHeader(const CBlockHeader &block, CValidationState &state, bool fCheckPOW)
 {
-    // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, Params().GetConsensus()))
-        return state.DoS(50, error("CheckBlockHeader(): proof of work failed"), REJECT_INVALID, "high-hash");
-
-    // Check timestamp
-    if (block.GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
-        return state.Invalid(
-            error("CheckBlockHeader(): block timestamp too far in the future"), REJECT_INVALID, "time-too-new");
-
-    return true;
-}
-
-
-bool CheckBlockHeader(const CDeltaBlock &block, CValidationState &state, bool fCheckPOW, uint8_t k)
-{
-    // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckBobtailPoW(std::make_shared<CDeltaBlock>(block), Params().GetConsensus(), k))
-        return state.DoS(50, error("CheckBlockHeader(): proof of work failed"), REJECT_INVALID, "high-hash");
+    int k = 3; // FIXME
+    std::shared_ptr<const CDeltaBlock> deltaBlock = known_dbs[block.GetHash()];
+    if (fCheckPOW && !CheckBobtailPoW(*deltaBlock, deltaBlock->allAncestorHashes(), Params().GetConsensus(), k))
+    {
+        assert(false);
+        return state.DoS(50, error("CheckBlockHeader(): bobtail proof of work failed"), REJECT_INVALID, "high-hash");
+    }
 
     // Check timestamp
     if (block.GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
@@ -3609,8 +3600,8 @@ bool ProcessNewBlock(CValidationState &state,
         // demerit the sender
         return error("%s: CheckBlockHeader FAILED", __func__);
     }
-    if (IsChainNearlySyncd() && !fImporting && !fReindex)
-        SendExpeditedBlock(*pblock, pfrom);
+    //if (IsChainNearlySyncd() && !fImporting && !fReindex)
+    //    SendExpeditedBlock(*pblock, pfrom);
 
     bool checked = CheckBlock(*pblock, state);
     if (!checked)
