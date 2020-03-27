@@ -163,16 +163,24 @@ class TxnCloneTest(BitcoinTestFramework):
         # Node1's "from0" account balance
         assert_equal(self.nodes[1].getbalance("from0", 0), -(tx1["amount"] + tx2["amount"]))
 
-if __name__ == '__main__':
-    TxnCloneTest().main()
+def standardFlags():
+    flags = [] # ["--nocleanup", "--noshutdown"]
+    if os.path.isdir("/media/nameme"):
+        flags.append("--tmpdir=/media/nameme/t")
+    binpath = findBitcoind()
+    flags.append("--srcdir=%s" % binpath)
+    return flags
 
 def Test():
     t = TxnCloneTest()
     t.drop_to_pdb = True
     bitcoinConf = {
-        "debug": ["blk", "mempool", "net", "req"],
+        "debug": ["graphene", "blk", "mempool", "net", "req"],
         "logtimemicros": 1
     }
 
     flags = standardFlags()
     t.main(flags, bitcoinConf, None)
+
+if __name__ == '__main__':
+    Test()
