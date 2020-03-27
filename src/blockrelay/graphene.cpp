@@ -766,6 +766,7 @@ bool CGrapheneBlock::process(CNode *pfrom, std::string strCommand, std::shared_p
     // and re-request failover block (This should never happen because we just checked the various pools).
     if (missingCount > 0)
     {
+        vTxHashes256.clear();
         RequestFailureRecovery(pfrom, grapheneBlock, vSenderFilterPositiveHahses);
         return error("Still missing transactions for graphene block: re-requesting failover block");
     }
@@ -896,7 +897,6 @@ static bool ReconstructBlock(CNode *pfrom,
         }
         if (!ptx)
         {
-            LOG(GRAPHENE, "RECONSTRUCTING tx missing %s", ptx->GetHash().ToString());
             LOG(GRAPHENE, "MISSING\n");
             missingCount++;
         }
