@@ -174,6 +174,17 @@ bool CGrapheneBlock::ValidateAndRecontructBlock(int &missingCount,
         LOG(GRAPHENE, "\t%s\n", tx.ToString());
     }
 
+    if (pblock)
+    {
+        LOG(GRAPHENE, "pblock IS NOT null? \n");
+        for (auto &tx : pblock->vtx)
+        {
+            LOG(GRAPHENE, "\tpb: %s\n", tx->GetHash().ToString());
+        }
+    }
+    else
+        LOG(GRAPHENE, "pblock IS null? \n");
+
     size_t msgSize = vRecv.size();
     OrderTxHashes(pfrom);
 
@@ -203,6 +214,7 @@ bool CGrapheneBlock::ValidateAndRecontructBlock(int &missingCount,
 
         // for compression statistics, we have to add up the size of grapheneblock and the re-requested grapheneBlockTx.
         uint64_t nSizeGrapheneBlockTx = msgSize;
+        LOG(GRAPHENE, "missingCount2: %d\n", missingCount);
         uint64_t blockSize = pblock->GetBlockSize();
         float nCompressionRatio = 0.0;
         if (GetSize() + nSizeGrapheneBlockTx > 0)
@@ -762,11 +774,13 @@ bool CGrapheneBlock::process(CNode *pfrom, std::string strCommand, std::shared_p
         return true;
     }
 
+    LOG(GRAPHENE, "MISSING COUNT %d\n", missingCount);
+    LOG(GRAPHENE, "vtx.size %d\n", pblock->vtx.size());
+
     // If there are still any missing transactions then we must clear out the graphene block data
     // and re-request failover block (This should never happen because we just checked the various pools).
     if (missingCount > 0)
     {
-        vTxHashes256.clear();
         RequestFailureRecovery(pfrom, grapheneBlock, vSenderFilterPositiveHahses);
         return error("Still missing transactions for graphene block: re-requesting failover block");
     }
