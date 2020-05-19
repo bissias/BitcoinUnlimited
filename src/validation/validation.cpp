@@ -129,7 +129,8 @@ bool CheckBlockHeader(const CBlockHeader &block, CValidationState &state, bool f
 {
     int k = 3; // FIXME
     std::shared_ptr<const CDeltaBlock> deltaBlock = known_dbs[block.GetHash()];
-    if (fCheckPOW && (deltaBlock == nullptr || !CheckBobtailPoW(*deltaBlock, deltaBlock->allAncestorHashes(), Params().GetConsensus(), k)))
+    if (fCheckPOW && (deltaBlock == nullptr ||
+                         !CheckBobtailPoW(*deltaBlock, deltaBlock->allAncestorHashes(), Params().GetConsensus(), k)))
     {
         return state.DoS(50, error("CheckBlockHeader(): bobtail proof of work failed"), REJECT_INVALID, "high-hash");
     }
@@ -3599,7 +3600,7 @@ bool ProcessNewBlock(CValidationState &state,
         // demerit the sender
         return error("%s: CheckBlockHeader FAILED", __func__);
     }
-    //if (IsChainNearlySyncd() && !fImporting && !fReindex)
+    // if (IsChainNearlySyncd() && !fImporting && !fReindex)
     //    SendExpeditedBlock(*pblock, pfrom);
 
     bool checked = CheckBlock(*pblock, state);
