@@ -7,6 +7,11 @@
 #ifndef BITCOIN_CONSENSUS_CONSENSUS_H
 #define BITCOIN_CONSENSUS_CONSENSUS_H
 
+/** Bobtail k parameter: the average of k proof values must fall below the target
+ *  in order to meet Bobtail PoW.
+ */
+static const unsigned int BOBTAIL_K = 3;
+
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 // BU: this constant is deprecated but is still used in a few areas such as allocation of memory.  Removing it is a
 // tradeoff between being perfect and changing more code. TODO: remove this entirely
