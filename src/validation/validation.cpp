@@ -10,6 +10,7 @@
 #include "blockstorage/blockstorage.h"
 #include "blockstorage/sequential_files.h"
 #include "bobtail/bobtail.h"
+#include "bobtail/dag.h"
 #include "checkpoints.h"
 #include "connmgr.h"
 #include "consensus/merkle.h"
@@ -30,7 +31,7 @@
 #include <boost/scope_exit.hpp>
 
 
-extern std::map<uint256, ConstCDeltaBlockRef> known_dbs;
+extern CDagForrest bobtailDag;
 extern CTweak<unsigned int> unconfPushAction;
 
 struct CBlockIndexWorkComparator
@@ -128,10 +129,13 @@ static ThresholdConditionCache warningcache[Consensus::MAX_VERSION_BITS_DEPLOYME
 
 bool CheckBlockHeader(const CBlockHeader &block, CValidationState &state, bool fCheckPOW)
 {
-    std::shared_ptr<const CDeltaBlock> deltaBlock = known_dbs[block.GetHash()];
+    CDagNode *dagNode = bobtailDag.Find(block.GetHash());
+    CSubBlockRef deltaBlock = std::make_shared<CSubBlock>(dagNode->subblock);
+    //TODO: CheckBobtailPoW SHOULD TAKE DAG NOT HASHES
+    std::vector<uint256> ancestors; //DELETE ME
     if (fCheckPOW &&
         (deltaBlock == nullptr ||
-            !CheckBobtailPoW(*deltaBlock, deltaBlock->allAncestorHashes(), Params().GetConsensus(), BOBTAIL_K)))
+            !CheckBobtailPoW(*deltaBlock, ancestors, Params().GetConsensus(), BOBTAIL_K)))
     {
         return state.DoS(50, error("CheckBlockHeader(): bobtail proof of work failed"), REJECT_INVALID, "high-hash");
     }
@@ -3659,7 +3663,8 @@ bool ProcessNewBlock(CValidationState &state,
       validation will make the registration order arbitrary which
       means delta blocks transmission and refering might sporadically
       fail. */
-    CDeltaBlock::newStrong(pblock->GetHash());
+    //TODO: IS THIS NECESSARY?
+    //CDeltaBlock::newStrong(pblock->GetHash());
 
     if (!ActivateBestChain(state, chainparams, pblock, fParallel))
     {

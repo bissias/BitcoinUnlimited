@@ -163,10 +163,13 @@ CTransactionRef BlockAssembler::coinbaseTx(const CScript &scriptPubKeyIn, int _n
     // merge with delta template's coinbase if available
     if (best_delta_template != nullptr)
     {
+        //TODO: ADD SUBBLOCK COINBASE CONTRUCTION LOGIC HERE
+        /*
         // LOG(WB, "Delta template available. Constructing coinbase for new block template from delta block.\n");
         for (auto ancptr_opret : best_delta_template->coinbase()->vout)
             // _anc estor _poin_t_r _OPRET URN
             tx.vout.emplace_back(ancptr_opret);
+        */
     }
     tx.vin[0].scriptSig = CScript() << _nHeight << OP_0;
 
@@ -232,8 +235,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
     assert(pindexPrev); // can't make a new block if we don't even have the previous block
     const uint256 prevBlockHash = pindexPrev->GetBlockHash();
 
-    best_delta_template =
-        CDeltaBlock::isEnabled(Params(), pindexPrev) ? CDeltaBlock::bestTemplate(prevBlockHash) : nullptr;
+    //TODO: ADD CODE TO CREATE SUBBLOCK TEMPLATE HERE
+    //best_delta_template =
+    //    CDeltaBlock::isEnabled(Params(), pindexPrev) ? CDeltaBlock::bestTemplate(prevBlockHash) : nullptr;
+    best_delta_template = nullptr;
 
     if (best_delta_template == nullptr)
     {
@@ -282,11 +287,14 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
     if (pblocktemplate->delta_block != nullptr)
     {
         LOG(WB, "Pre-adding %d transactions (and excluding the coinbase) from delta block.\n",
-            best_delta_template->numTransactions() - 1);
-        LOG(WB, "Current delta template delta set size: %d\n", best_delta_template->deltaSet().size());
-        for (auto biter = best_delta_template->begin_past_coinbase(); biter != best_delta_template->end(); ++biter)
+            best_delta_template->vtx.size() - 1);
+        LOG(WB, "Current delta template delta set size: %d\n", best_delta_template->vtx.size());
+        //for (auto biter = best_delta_template->begin_past_coinbase(); biter != best_delta_template->end(); ++biter)
+        for (auto txr : best_delta_template->vtx)
         {
-            auto txr = *biter;
+            if (txr->IsCoinBase())
+                continue;
+            //auto txr = *biter;
             bool done = false;
             {
                 READLOCK(mempool.cs_txmempool);
@@ -405,7 +413,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
         LOG(WB, "Size of vtxe set: %d\n", vtxe.size());
         size_t i = 0;
         size_t start_delta_set =
-            (pblocktemplate->delta_block != nullptr ? pblocktemplate->delta_block->numTransactions() - 1 : 0);
+            (pblocktemplate->delta_block != nullptr ? pblocktemplate->delta_block->vtx.size() - 1 : 0);
         LOG(WB, "Start of delta set in delta block: %d\n", start_delta_set);
 
         std::vector<CTransactionRef> add_to_delta;
@@ -428,7 +436,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
             std::random_shuffle(add_to_delta.begin(), add_to_delta.end());
             for (auto txref : add_to_delta)
             {
-                pblocktemplate->delta_block->add(txref);
+                pblocktemplate->delta_block->vtx.push_back(txref);
                 // COZ_PROGRESS_NAMED("add to delta from vector");
             }
         }
@@ -448,10 +456,13 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
         // pblock->numTransactions());
         if (pblocktemplate->delta_block != nullptr)
         {
+            //TODO ADD SUBBLOCK COINBASE
+            /*
             LOG(WB, "Delta block num txn before adding CB: %d\n", pblocktemplate->delta_block->numTransactions());
             pblocktemplate->delta_block->setCoinbase(final_cb);
             LOG(WB, "Delta block num txn after adding CB: %d\n", pblocktemplate->delta_block->numTransactions());
             LOG(WB, "Delta block delta set size: %d\n", pblocktemplate->delta_block->deltaSet().size());
+            */
         }
         pblocktemplate->vTxFees[0] = -nFees;
 
@@ -466,7 +477,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
             UpdateTime(pblocktemplate->delta_block.get(), chainparams.GetConsensus(), pindexPrev);
             pblocktemplate->delta_block->nBits = pblock->nBits;
             pblocktemplate->delta_block->nNonce = pblock->nNonce;
-            pblocktemplate->delta_block->setAllTransactionsKnown();
+            //pblocktemplate->delta_block->setAllTransactionsKnown();
 
             // sanity check: both blocks should have the same merkle root
             // uint256 regular_hashMerkleRoot = BlockMerkleRoot(*pblock);
@@ -481,8 +492,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
             */
             // LOG(WB, "Miner constructed regular block max depth: %d, for size: %d\n", pblock->treeMaxDepth(),
             // pblock->numTransactions());
-            LOG(WB, "Miner constructed delta block max depth: %d, for size: %d\n",
-                pblocktemplate->delta_block->treeMaxDepth(), pblocktemplate->delta_block->numTransactions());
+            LOG(WB, "Miner constructed delta block max depth: ???, for size: %d\n",
+                pblocktemplate->delta_block->vtx.size());
 
             // LOG(WB, "Delta block merkle root: %s, regular merkle root: %s\n", delta_hashMerkleRoot.GetHex(),
             // regular_hashMerkleRoot.GetHex());
@@ -503,7 +514,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
     if (pblocktemplate->delta_block != nullptr)
     {
         pblocktemplate->delta_block->fXVal = true;
-        testblock = pblocktemplate->delta_block.get();
+        //TODO: SUBBLOCK CANNOT BE CONVERTED TO REGULAR BLOCK
+        //testblock = pblocktemplate->delta_block.get();
     }
 
     if (blockstreamCoreCompatible)
@@ -658,12 +670,13 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
                   tx->GetHash().GetHex());*/
                 return false;
             }
+            //TODO: NECESSARY FOR SUBBLOCKS?
+            /*
             if (best_delta_template->spendsOutput(inp.prevout))
             {
-                /*LOG(WB, "Transaction %s would be double-spending one included in delta block template, dropping.\n",
-                  tx->GetHash().GetHex());*/
                 return false;
             }
+            */
         }
     }
     return true;
