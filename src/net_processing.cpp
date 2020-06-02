@@ -222,7 +222,7 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                                     typedef std::pair<unsigned int, uint256> PairType;
                                     for (PairType &pair : merkleBlock.vMatchedTxn)
                                     {
-                                        CTransactionRef txref = block.by_pos(pair.first);
+                                        CTransactionRef txref = block.vtx[pair.first];
                                         if (txref != nullptr)
                                         {
                                             pfrom->PushMessage(NetMsgType::TX, txref);

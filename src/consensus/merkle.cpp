@@ -198,9 +198,9 @@ uint256 ComputeMerkleRootFromBranch(const uint256 &leaf, const std::vector<uint2
 static std::vector<uint256> getLeaves(const CBlock &block)
 {
     std::vector<uint256> leaves;
-    leaves.resize(block.numTransactions());
+    leaves.resize(block.vtx.size());
     size_t s = 0;
-    for (const CTransactionRef &txr : block)
+    for (const CTransactionRef &txr : block.vtx)
         leaves[s++] = txr->GetHash();
     return leaves;
 }
