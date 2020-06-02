@@ -166,7 +166,7 @@ CTransactionRef BlockAssembler::coinbaseTx(const CScript &scriptPubKeyIn, int _n
         //TODO: ADD SUBBLOCK COINBASE CONTRUCTION LOGIC HERE
         /*
         // LOG(WB, "Delta template available. Constructing coinbase for new block template from delta block.\n");
-        for (auto ancptr_opret : best_delta_template->coinbase()->vout)
+        for (auto ancptr_opret : best_delta_template->vtx[0]->vout)
             // _anc estor _poin_t_r _OPRET URN
             tx.vout.emplace_back(ancptr_opret);
         */
@@ -447,13 +447,13 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
         // LOG(WB, "Sorted LTOR.\n");
 
         // Create coinbase transaction.
-        // LOG(WB, "Block num txn before adding CB: %d\n", pblock->numTransactions());
+        // LOG(WB, "Block num txn before adding CB: %d\n", pblock->vtx.size());
 
         CTransactionRef final_cb =
             coinbaseTx(scriptPubKeyIn, nHeight, nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus()));
         // pblock->setCoinbase(final_cb);
-        // LOG(WB, "Block num txn after adding CB (%s): %d\n", pblock->coinbase()->GetHash().GetHex(),
-        // pblock->numTransactions());
+        // LOG(WB, "Block num txn after adding CB (%s): %d\n", pblock->vtx[0]->GetHash().GetHex(),
+        // pblock->vtx.size());
         if (pblocktemplate->delta_block != nullptr)
         {
             //TODO ADD SUBBLOCK COINBASE
@@ -484,16 +484,16 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript &sc
             // uint256 delta_hashMerkleRoot = BlockMerkleRoot(*pblocktemplate->delta_block);
 
             /*
-            for (auto txref : *pblock)
+            for (auto txref : pblock->vtx)
                 LOG(WB, "Regular block txhash: %s\n", txref->GetHash().GetHex());
 
             for (auto txref : *pblocktemplate->delta_block)
                 LOG(WB, "Delta block txhash: %s\n", txref->GetHash().GetHex());
             */
             // LOG(WB, "Miner constructed regular block max depth: %d, for size: %d\n", pblock->treeMaxDepth(),
-            // pblock->numTransactions());
-            LOG(WB, "Miner constructed delta block max depth: ???, for size: %d\n",
-                pblocktemplate->delta_block->vtx.size());
+            // pblock->vtx.size());
+            //LOG(WB, "Miner constructed delta block max depth: %d, for size: %d\n",
+            //    pblocktemplate->delta_block->treeMaxDepth(), pblocktemplate->delta_block->vtx.size());
 
             // LOG(WB, "Delta block merkle root: %s, regular merkle root: %s\n", delta_hashMerkleRoot.GetHex(),
             // regular_hashMerkleRoot.GetHex());
@@ -1001,7 +1001,7 @@ void IncrementExtraNonce(CBlock *pblock, unsigned int &nExtraNonce)
     }
     ++nExtraNonce;
     unsigned int nHeight = pblock->GetHeight(); // Height first in coinbase required for block.version=2
-    CMutableTransaction txCoinbase(*pblock->coinbase());
+    CMutableTransaction txCoinbase(*pblock->vtx[0]);
 
     CScript script = (CScript() << nHeight << CScriptNum(nExtraNonce));
     CScript cbFlags;
@@ -1022,7 +1022,6 @@ void IncrementExtraNonce(CBlock *pblock, unsigned int &nExtraNonce)
     {
         txCoinbase.vin[0].scriptSig << std::vector<uint8_t>(MIN_TX_SIZE - nCoinbaseSize - 1);
     }
-
-    pblock->setCoinbase(MakeTransactionRef(std::move(txCoinbase)));
+    pblock->vtx[0] = (MakeTransactionRef(std::move(txCoinbase)));
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 }
