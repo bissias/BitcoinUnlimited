@@ -124,9 +124,9 @@ void TestPackageSelection(const CChainParams &chainparams, CScript scriptPubKey,
     mempool.addUnchecked(hashHighFeeTx, entry.Fee(50000).Time(GetTime()).SpendsCoinbase(false).FromTx(tx));
 
     std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
-    BOOST_CHECK(pblocktemplate->block->vtx[1]->GetHash() == hashParentTx);
-    BOOST_CHECK(pblocktemplate->block->vtx[2]->GetHash() == hashHighFeeTx);
-    BOOST_CHECK(pblocktemplate->block->vtx[3]->GetHash() == hashMediumFeeTx);
+    BOOST_CHECK(pblocktemplate->block.vtx[1]->GetHash() == hashParentTx);
+    BOOST_CHECK(pblocktemplate->block.vtx[2]->GetHash() == hashHighFeeTx);
+    BOOST_CHECK(pblocktemplate->block.vtx[3]->GetHash() == hashMediumFeeTx);
 
     // Test that a package below the min relay fee doesn't get included
     tx.vin[0].prevout.hash = txFirst[3]->GetHash();
@@ -145,10 +145,10 @@ void TestPackageSelection(const CChainParams &chainparams, CScript scriptPubKey,
     mempool.addUnchecked(hashLowFeeTx, entry.Fee(feeToUse).FromTx(tx));
     pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
     // Verify that the free tx and the low fee tx didn't get selected
-    for (size_t i = 0; i < pblocktemplate->block->vtx.size(); ++i)
+    for (size_t i = 0; i < pblocktemplate->block.vtx.size(); ++i)
     {
-        BOOST_CHECK(pblocktemplate->block->vtx[i]->GetHash() != hashFreeTx);
-        BOOST_CHECK(pblocktemplate->block->vtx[i]->GetHash() != hashLowFeeTx);
+        BOOST_CHECK(pblocktemplate->block.vtx[i]->GetHash() != hashFreeTx);
+        BOOST_CHECK(pblocktemplate->block.vtx[i]->GetHash() != hashLowFeeTx);
     }
 
     // Test that packages above the min relay fee do get included, even if one
@@ -160,8 +160,8 @@ void TestPackageSelection(const CChainParams &chainparams, CScript scriptPubKey,
     hashLowFeeTx = tx.GetHash();
     mempool.addUnchecked(hashLowFeeTx, entry.Fee(feeToUse + 2).FromTx(tx));
     pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
-    BOOST_CHECK(pblocktemplate->block->vtx[4]->GetHash() == hashFreeTx);
-    BOOST_CHECK(pblocktemplate->block->vtx[5]->GetHash() == hashLowFeeTx);
+    BOOST_CHECK(pblocktemplate->block.vtx[4]->GetHash() == hashFreeTx);
+    BOOST_CHECK(pblocktemplate->block.vtx[5]->GetHash() == hashLowFeeTx);
 
     // Test that transaction selection properly updates ancestor fee
     // calculations as ancestor transactions get included in a block.
@@ -183,10 +183,10 @@ void TestPackageSelection(const CChainParams &chainparams, CScript scriptPubKey,
     pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
 
     // Verify that this tx isn't selected.
-    for (size_t i = 0; i < pblocktemplate->block->vtx.size(); ++i)
+    for (size_t i = 0; i < pblocktemplate->block.vtx.size(); ++i)
     {
-        BOOST_CHECK(pblocktemplate->block->vtx[i]->GetHash() != hashFreeTx2);
-        BOOST_CHECK(pblocktemplate->block->vtx[i]->GetHash() != hashLowFeeTx2);
+        BOOST_CHECK(pblocktemplate->block.vtx[i]->GetHash() != hashFreeTx2);
+        BOOST_CHECK(pblocktemplate->block.vtx[i]->GetHash() != hashLowFeeTx2);
     }
 
     // This tx will be mineable. And will also now allow hashLowFeeTx2 to be
@@ -197,9 +197,9 @@ void TestPackageSelection(const CChainParams &chainparams, CScript scriptPubKey,
     mempool.addUnchecked(tx.GetHash(), entry.Fee(10000).FromTx(tx));
     pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
     // hashHighFeeTx2 now makes hashFreeTx2 mineable.
-    BOOST_CHECK(pblocktemplate->block->vtx[4]->GetHash() == hashFreeTx2);
-    BOOST_CHECK(pblocktemplate->block->vtx[5]->GetHash() == hashHighFeeTx2);
-    BOOST_CHECK(pblocktemplate->block->vtx[8]->GetHash() == hashLowFeeTx2);
+    BOOST_CHECK(pblocktemplate->block.vtx[4]->GetHash() == hashFreeTx2);
+    BOOST_CHECK(pblocktemplate->block.vtx[5]->GetHash() == hashHighFeeTx2);
+    BOOST_CHECK(pblocktemplate->block.vtx[8]->GetHash() == hashLowFeeTx2);
 
     // Test CPFP with AGT (ancestor grouped transactions)
     // Add another 0 fee tx to higher fee tx chain. This should also get mined
@@ -216,10 +216,10 @@ void TestPackageSelection(const CChainParams &chainparams, CScript scriptPubKey,
     // has a higher fee. This is because hashFreeTx3 is part of the ancestor grouping
     // along with hashHighFeeTx2 and hashFreeTx2 and since it's "group" fee is higher
     // than hashLowFeeTx2 then it will get mined first.
-    BOOST_CHECK(pblocktemplate->block->vtx[4]->GetHash() == hashFreeTx2);
-    BOOST_CHECK(pblocktemplate->block->vtx[5]->GetHash() == hashHighFeeTx2);
-    BOOST_CHECK(pblocktemplate->block->vtx[6]->GetHash() == hashFreeTx3);
-    BOOST_CHECK(pblocktemplate->block->vtx[9]->GetHash() == hashLowFeeTx2);
+    BOOST_CHECK(pblocktemplate->block.vtx[4]->GetHash() == hashFreeTx2);
+    BOOST_CHECK(pblocktemplate->block.vtx[5]->GetHash() == hashHighFeeTx2);
+    BOOST_CHECK(pblocktemplate->block.vtx[6]->GetHash() == hashFreeTx3);
+    BOOST_CHECK(pblocktemplate->block.vtx[9]->GetHash() == hashLowFeeTx2);
 
     // reset back to ctor
     fCanonicalTxsOrder = true;
@@ -248,15 +248,15 @@ void GenerateBlocks(const CChainParams &chainparams,
         maxGeneratedBlock = i;
         uint64_t nStartMine = GetStopwatchMicros();
         pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
-        nTotalBlockSize += pblocktemplate->block->GetBlockSize();
+        nTotalBlockSize += pblocktemplate->block.GetBlockSize();
         nTotalMine += GetStopwatchMicros() - nStartMine;
         BOOST_CHECK(pblocktemplate);
-        BOOST_CHECK(pblocktemplate->block->fExcessive == false);
-        BOOST_CHECK(pblocktemplate->block->GetBlockSize() <= maxGeneratedBlock);
-        unsigned int blockSize = ::GetSerializeSize(*(pblocktemplate->block), SER_NETWORK, CBlock::CURRENT_VERSION);
+        BOOST_CHECK(pblocktemplate->block.fExcessive == false);
+        BOOST_CHECK(pblocktemplate->block.GetBlockSize() <= maxGeneratedBlock);
+        unsigned int blockSize = ::GetSerializeSize(pblocktemplate->block, SER_NETWORK, CBlock::CURRENT_VERSION);
         BOOST_CHECK(blockSize <= maxGeneratedBlock);
         printf("%lu %lu:%lu <= %lu\n", (long unsigned int)blockSize,
-            (long unsigned int)pblocktemplate->block->GetBlockSize(), pblocktemplate->block->vtx.size(),
+            (long unsigned int)pblocktemplate->block.GetBlockSize(), pblocktemplate->block.vtx.size(),
             (long unsigned int)maxGeneratedBlock);
     }
 
@@ -421,7 +421,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     std::vector<CTransactionRef> txFirst;
     for (unsigned int i = 0; i < sizeof(blockinfo) / sizeof(*blockinfo); ++i)
     {
-        CBlockRef pblock = pblocktemplate->block; // pointer for convenience
+        CBlock *pblock = &pblocktemplate->block; // pointer for convenience
         pblock->nVersion = 1;
         pblock->nTime = chainActive.Tip()->GetMedianTimePast() + 1;
         CMutableTransaction txCoinbase(*pblock->vtx[0]);
@@ -433,12 +433,12 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
         if (txFirst.size() == 0)
             baseheight = chainActive.Height();
-        if (txFirst.size() < 4)
+        if (txFirst.size() < 10)
             txFirst.push_back(pblock->vtx[0]);
         pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
         pblock->nNonce = blockinfo[i].nonce;
         CValidationState state;
-        BOOST_CHECK(ProcessNewBlock(state, chainparams, nullptr, pblock.get(), true, nullptr, false));
+        BOOST_CHECK(ProcessNewBlock(state, chainparams, nullptr, pblock, true, nullptr, false));
         BOOST_CHECK(state.IsValid());
         pblock->hashPrevBlock = pblock->GetHash();
     }
@@ -490,9 +490,9 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
 
         pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
         BOOST_CHECK(pblocktemplate);
-        BOOST_CHECK(pblocktemplate->block->fExcessive == false);
-        BOOST_CHECK(pblocktemplate->block->GetBlockSize() <= maxGeneratedBlock);
-        unsigned int blockSize = ::GetSerializeSize(*pblocktemplate->block, SER_NETWORK, CBlock::CURRENT_VERSION);
+        BOOST_CHECK(pblocktemplate->block.fExcessive == false);
+        BOOST_CHECK(pblocktemplate->block.GetBlockSize() <= maxGeneratedBlock);
+        unsigned int blockSize = ::GetSerializeSize(pblocktemplate->block, SER_NETWORK, CBlock::CURRENT_VERSION);
         BOOST_CHECK(blockSize <= maxGeneratedBlock);
         // printf("%lu %lu <= %lu\n", (long unsigned int) blockSize, (long unsigned int)
         // pblocktemplate->block.GetBlockSize(), (long unsigned int) maxGeneratedBlock);
@@ -512,9 +512,9 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
 
         pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
         BOOST_CHECK(pblocktemplate);
-        BOOST_CHECK(pblocktemplate->block->fExcessive == false);
-        BOOST_CHECK(pblocktemplate->block->GetBlockSize() <= maxGeneratedBlock - 4);
-        unsigned int blockSize = ::GetSerializeSize(*pblocktemplate->block, SER_NETWORK, CBlock::CURRENT_VERSION);
+        BOOST_CHECK(pblocktemplate->block.fExcessive == false);
+        BOOST_CHECK(pblocktemplate->block.GetBlockSize() <= maxGeneratedBlock - 4);
+        unsigned int blockSize = ::GetSerializeSize(pblocktemplate->block, SER_NETWORK, CBlock::CURRENT_VERSION);
         BOOST_CHECK(blockSize <= maxGeneratedBlock - 4);
         minRoom = std::min(minRoom, maxGeneratedBlock - blockSize);
         // printf("%lu %lu <= %lu\n", (long unsigned int) blockSize, (long unsigned int)
@@ -540,9 +540,9 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         // minerComment = testMinerComment.substr(0,i%100);
         pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
         BOOST_CHECK(pblocktemplate);
-        BOOST_CHECK(pblocktemplate->block->fExcessive == false);
-        BOOST_CHECK(pblocktemplate->block->GetBlockSize() <= maxGeneratedBlock - 2);
-        unsigned int blockSize = ::GetSerializeSize(*pblocktemplate->block, SER_NETWORK, CBlock::CURRENT_VERSION);
+        BOOST_CHECK(pblocktemplate->block.fExcessive == false);
+        BOOST_CHECK(pblocktemplate->block.GetBlockSize() <= maxGeneratedBlock - 2);
+        unsigned int blockSize = ::GetSerializeSize(pblocktemplate->block, SER_NETWORK, CBlock::CURRENT_VERSION);
         BOOST_CHECK(blockSize <= maxGeneratedBlock - 2);
         minRoom = std::min(minRoom, maxGeneratedBlock - blockSize);
         // printf("%lu %lu (miner comment is %d) <= %lu\n", (long unsigned int) blockSize, (long unsigned int)
@@ -783,7 +783,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     // it into the template because we still check IsFinalTx in CreateNewBlock,
     // but relative locked txs will if inconsistently added to mempool.
     // For now these will still generate a valid template until BIP68 soft fork
-    BOOST_CHECK_EQUAL(pblocktemplate->block->vtx.size(), 3);
+    BOOST_CHECK_EQUAL(pblocktemplate->block.vtx.size(), 3);
     // However if we advance height by 1 and time by 512, all of them should be mined
     for (int i = 0; i < CBlockIndex::nMedianTimeSpan; i++)
         chainActive.Tip()->GetAncestor(chainActive.Tip()->nHeight - i)->nTime += 512; // Trick the MedianTimePast
@@ -791,7 +791,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     SetMockTime(chainActive.Tip()->GetMedianTimePast() + 1);
 
     BOOST_CHECK(pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey));
-    BOOST_CHECK_EQUAL(pblocktemplate->block->vtx.size(), 5);
+    BOOST_CHECK_EQUAL(pblocktemplate->block.vtx.size(), 5);
 
     chainActive.Tip()->nHeight--;
     SetMockTime(0);

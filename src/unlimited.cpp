@@ -7,10 +7,8 @@
 
 #include "base58.h"
 #include "blockrelay/graphene.h"
-#include "blockrelay/netdeltablocks.h"
 #include "blockrelay/thinblock.h"
 #include "blockstorage/blockstorage.h"
-#include "bobtail/bobtail.h"
 #include "cashaddrenc.h"
 #include "chain.h"
 #include "chainparams.h"
@@ -51,7 +49,6 @@
 
 #include <atomic>
 #include <boost/lexical_cast.hpp>
-//#include <coz.h>
 #include <inttypes.h>
 #include <iomanip>
 #include <limits>
@@ -526,8 +523,7 @@ extern void UnlimitedLogBlock(const CBlock &block, const std::string &hash, uint
     if (blockReceiptLog) {
         long int byteLen = block.GetBlockSize();
         CBlockHeader bh = block.GetBlockHeader();
-        fprintf(blockReceiptLog, "%" PRIu64 ",%" PRIu64 ",%ld,%ld,%s\n", receiptTime, (uint64_t)bh.nTime, byteLen,
-                block.vtx.size(), hash.c_str());
+        fprintf(blockReceiptLog, "%" PRIu64 ",%" PRIu64 ",%ld,%ld,%s\n", receiptTime, (uint64_t)bh.nTime, byteLen, block.vtx.size(), hash.c_str());
         fflush(blockReceiptLog);
     }
 #endif
@@ -589,7 +585,7 @@ bool static ScanHash(const CBlockHeader *pblock, uint32_t &nNonce, uint256 *phas
 
 static bool ProcessBlockFound(const CBlock *pblock, const CChainParams &chainparams)
 {
-    // LOGA("%s\n", pblock->ToString());
+    LOGA("%s\n", pblock->ToString());
     LOGA("generated %s\n", FormatMoney(pblock->vtx[0]->vout[0].nValue));
 
     // Found a solution
@@ -665,38 +661,16 @@ void static BitcoinMiner(const CChainParams &chainparams)
                 pindexPrev = chainActive.Tip();
             }
 
-            // COZ_BEGIN("CreateNewBlock");
-            int64_t micros_before = GetTimeMicros();
             unique_ptr<CBlockTemplate> pblocktemplate(
                 BlockAssembler(chainparams).CreateNewBlock(coinbaseScript->reserveScript));
-
-            int64_t micros_after = GetTimeMicros();
-            if (pblocktemplate->delta_block != nullptr)
-                LOG(WB, "Time for building and checking delta block template %s with %d txn: %d\n",
-                    pblocktemplate->delta_block->GetHash().GetHex(), pblocktemplate->delta_block->vtx.size(),
-                    micros_after - micros_before);
-
-            // COZ_END("CreateNewBlock");
-
             if (!pblocktemplate.get())
             {
                 LOGA("Error in BitcoinMiner: Keypool ran out, please call keypoolrefill before restarting the "
                      "mining thread\n");
                 return;
             }
-            CBlockRef pblock;
-            if (pblocktemplate->delta_block != nullptr)
-            {
-                LOG(WB, "Using delta block for mining.\n");
-                //pblock = pblocktemplate->delta_block;
-                //TODO: NEED MINING TEMPLATE FOR BOBTAIL
-                //pblock = pblocktemplate->delta_block;
-            }
-            else
-            {
-                pblock = pblocktemplate->block;
-            }
-            IncrementExtraNonce(pblock.get(), nExtraNonce);
+            CBlock *pblock = &pblocktemplate->block;
+            IncrementExtraNonce(pblock, nExtraNonce);
 
             LOGA("Running BitcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                 pblock->GetBlockSize());
@@ -705,60 +679,37 @@ void static BitcoinMiner(const CChainParams &chainparams)
             // Search
             //
             int64_t nStart = GetTime();
-            arith_uint256 hashStrongTarget = arith_uint256().SetCompact(pblock->nBits);
-            arith_uint256 hashWeakTarget = arith_uint256().SetCompact(weakPOWfromPOW(pblock->nBits));
-
+            arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
             uint256 hash;
             uint32_t nNonce = 0;
-
-            //ConstCDeltaBlockRef latest_delta(CDeltaBlock::latestForStrong(pblock->hashPrevBlock));
             while (true)
             {
                 // Check if something found
-                if (ScanHash(pblock.get(), nNonce, &hash))
+                if (ScanHash(pblock, nNonce, &hash))
                 {
-                    if (UintToArith256(hash) <= hashWeakTarget)
+                    if (UintToArith256(hash) <= hashTarget)
                     {
                         // Found a solution
                         pblock->nNonce = nNonce;
                         assert(hash == pblock->GetHash());
 
-                        LOG(WB, "weak proof-of-work found, hash: %s, target: %d\n", hash.GetHex(),
-                            hashWeakTarget.GetHex());
+                        SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                        LOGA("BitcoinMiner:\n");
+                        LOGA("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex(), hashTarget.GetHex());
+                        ProcessBlockFound(pblock, chainparams);
+                        SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                        coinbaseScript->KeepScript();
 
-                        bool is_strong = UintToArith256(hash) <= hashStrongTarget;
-                        if (pblocktemplate->delta_block != nullptr)
-                        {
-                            //CDeltaBlock::processNew(pblocktemplate->delta_block);
-                            //TODO: PROCESS NEW BLOCK HERE
-                            //TODO: ACTUALLY CALL sendDeltaBlock here
-                        }
-                        if (is_strong)
-                        {
-                            SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                            LOGA("BitcoinMiner:\n");
-                            LOGA("strong proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex(),
-                                hashStrongTarget.GetHex());
-                            ProcessBlockFound(pblock.get(), chainparams);
-                            SetThreadPriority(THREAD_PRIORITY_LOWEST);
-                            coinbaseScript->KeepScript();
+                        // In regression test mode, stop mining after a block is found.
+                        if (chainparams.MineBlocksOnDemand())
+                            throw boost::thread_interrupted();
 
-                            // In regression test mode, stop mining after a block is found.
-                            if (chainparams.MineBlocksOnDemand())
-                                throw boost::thread_interrupted();
-
-                            break;
-                        }
+                        break;
                     }
                 }
 
                 // Check for stop or if block needs to be rebuilt
                 boost::this_thread::interruption_point();
-
-                // rebuild when a new delta block arrived
-                //if (CDeltaBlock::latestForStrong(pblock->hashPrevBlock) != latest_delta)
-                //    break;
-                // TODO: WHAT IS THIS DOING? DO WE NEED IT?
                 // Regtest mode doesn't require peers
                 if (vNodes.empty() && chainparams.MiningRequiresPeers())
                     break;
@@ -773,14 +724,13 @@ void static BitcoinMiner(const CChainParams &chainparams)
                 }
 
                 // Update nTime every few seconds
-                if (UpdateTime(pblock.get(), chainparams.GetConsensus(), pindexPrev) < 0)
+                if (UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev) < 0)
                     break; // Recreate the block if the clock has run backwards,
                 // so that we can use the correct time.
                 if (chainparams.GetConsensus().fPowAllowMinDifficultyBlocks)
                 {
                     // Changing pblock->nTime can change work required on testnet:
-                    hashStrongTarget.SetCompact(pblock->nBits);
-                    hashWeakTarget.SetCompact(weakPOWfromPOW(pblock->nBits));
+                    hashTarget.SetCompact(pblock->nBits);
                 }
             }
         }
@@ -1725,14 +1675,16 @@ static void AddMiningCandidate(CMiningCandidate &candid, int64_t id)
     miningCandidatesMap[id] = candid;
 }
 
-// FIXME: isn't this code dup of merkle.cpp or merkleblock.cpp?
 std::vector<uint256> GetMerkleProofBranches(CBlock *pblock)
 {
     std::vector<uint256> ret;
     std::vector<uint256> leaves;
+    int len = pblock->vtx.size();
 
-    for (const auto &tx : pblock->vtx)
-        leaves.push_back(tx->GetHash());
+    for (int i = 0; i < len; i++)
+    {
+        leaves.push_back(pblock->vtx[i].get()->GetHash());
+    }
 
     ret = ComputeMerkleBranch(leaves, 0);
     return ret;
@@ -1755,7 +1707,7 @@ static UniValue MkMiningCandidateJson(CMiningCandidate &candid)
     ret.pushKV("prevhash", block.hashPrevBlock.GetHex());
 
     {
-        const CTransactionRef &tran = block.vtx[0];
+        const CTransaction *tran = block.vtx[0].get();
         ret.pushKV("coinbase", EncodeHexTx(*tran));
     }
 
@@ -2244,10 +2196,12 @@ extern UniValue getstructuresizes(const UniValue &params, bool fHelp)
                     (int64_t)::GetSerializeSize(*inode.pThinBlockFilter, SER_NETWORK, PROTOCOL_VERSION));
             }
         }
+
         {
             LOCK(inode.cs_vSend);
             node.pushKV("vAddrToSend", (int64_t)inode.vAddrToSend.size());
         }
+
         node.pushKV("vInventoryToSend", (int64_t)inode.vInventoryToSend.size());
         ret.pushKV(inode.addrName, node);
     }

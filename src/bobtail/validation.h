@@ -31,6 +31,16 @@ bool AcceptBobtailBlockBlockHeader(const CBlockHeader &block,
     const CChainParams &chainparams,
     CBlockIndex **ppindex = nullptr);
 
+/** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main
+ * held) */
+bool TestSubBlockValidity(CValidationState &state,
+    const CChainParams &chainparams,
+    const CSubBlock &block,
+    CBlockIndex *pindexPrev,
+    bool fCheckPOW = true,
+    bool fCheckMerkleRoot = true,
+    bool fConservative = false);
+
 bool CheckBobtailBlock(const CBobtailBlock &block, CValidationState &state, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins */
