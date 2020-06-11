@@ -8,7 +8,6 @@
 #include "consensus/merkle.h"
 #include "validation/validation.h"
 
-#include <boost/math/distributions/gamma.hpp>
 #include <stack>
 #include <queue>
 // FIXME: Add copyright here (awemany / BU devs)
@@ -360,7 +359,7 @@ void CDeltaBlock::setAllTransactionsKnown() { fAllTransactionsKnown = true; }
 bool CDeltaBlock::allTransactionsKnown() const { return fAllTransactionsKnown; }
 
 //bool CDeltaBlock::isStrong() const { return is_strong; }
-bool CDeltaBlock::isStrong() const { int k=3; /*FIXME*/ return CheckBobtailPoW(*((CBlockHeader *)this), delta_parent_hashes, Params().GetConsensus(), k); }
+bool CDeltaBlock::isStrong() const { /*FIXME*/ return true; }
 
 void CDeltaBlock::resetAll() {
     LOCK(cs_db);
@@ -433,14 +432,4 @@ void CDeltaBlock::processNew(CDeltaBlockRef dbr) {
 }
 bool CDeltaBlock::spendsOutput(const COutPoint &out) const {
     return spent.contains(out);
-}
-
-double GetKOSThreshold(arith_uint256 target, uint8_t k)
-{
-    if (k == 0)
-        return true;
-
-    boost::math::gamma_distribution<> bobtail_gamma(k, target.getdouble());
-
-    return quantile(bobtail_gamma, KOS_INCLUSION_PROB);
 }

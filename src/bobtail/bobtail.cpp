@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "bobtail.h"
+#include "bobtailblock.h"
+#include <boost/math/distributions/gamma.hpp>
 
 bool IsSubBlockMalformed(const CSubBlock &subblock)
 {
@@ -30,7 +32,7 @@ bool IsSubBlockMalformed(const CSubBlock &subblock)
     return false;
 }
 
-bool CheckBobtailPoW(CBlockHeader deltaHeader, std::vector<uint256> ancestors, const Consensus::Params &params, uint8_t k)
+bool CheckBobtailPoW(CBobtailBlock block, const Consensus::Params &params, uint8_t k)
 {
     bool fNegative;
     bool fOverflow;
@@ -39,14 +41,14 @@ bool CheckBobtailPoW(CBlockHeader deltaHeader, std::vector<uint256> ancestors, c
     if (k == 0)
         return true;
 
-    if (ancestors.size() < k-1)
+    if (block.vdag.size() < k)
         return false;
 
-    bnTarget.SetCompact(deltaHeader.nBits, &fNegative, &fOverflow);
+    bnTarget.SetCompact(block.nBits, &fNegative, &fOverflow);
 
     if (fNegative || fOverflow)
     {
-        LOG(WB, "Illegal value encountered when decoding target bits=%d\n", deltaHeader.nBits);
+        LOG(WB, "Illegal value encountered when decoding target bits=%d\n", block.nBits);
         return false;
     }
 
@@ -56,29 +58,18 @@ bool CheckBobtailPoW(CBlockHeader deltaHeader, std::vector<uint256> ancestors, c
         return false;
     }
 
-    std::sort(ancestors.begin(), ancestors.end());
+    std::vector<CSubBlockRef> subblocks = block.vdag;
+    std::vector<uint256> subblockHashes;
+    for (auto subblock : subblocks)
+    {
+        subblockHashes.push_back(subblock->GetHash());
+    }
+
+    std::sort(subblockHashes.begin(), subblockHashes.end());
     std::vector<arith_uint256> lowestK;
     for (int i=0;i < k-1;i++)
     {
-        lowestK.push_back(UintToArith256(ancestors[i]));
-    }
-
-    arith_uint256 childTarget = UintToArith256(deltaHeader.GetHash());
-    if (ancestors.size() == (uint8_t)(k-1))
-        lowestK.push_back(childTarget);
-    else
-    {
-        arith_uint256 parentTarget = UintToArith256(ancestors[k-1]);
-        if (parentTarget < childTarget)
-            lowestK.push_back(parentTarget);
-        else
-            lowestK.push_back(childTarget);
-    }
-
-    if (k < 1)
-    {
-        LOG(WB, "Illegal value for k=%d, value must exceed 0\n", k);
-        return false;
+        lowestK.push_back(UintToArith256(subblockHashes[i]));
     }
 
     return CheckBobtailPoWFromOrderedProofs(lowestK, bnTarget, k);
@@ -98,6 +89,31 @@ bool CheckBobtailPoWFromOrderedProofs(std::vector<arith_uint256> proofs, arith_u
     return false;
 }
 
+bool CheckSubBlockPoW(const CBlockHeader header, const Consensus::Params &params, uint8_t k)
+{
+    arith_uint256 bnTarget;
+    bool fNegative;
+    bool fOverflow;
+
+    bnTarget.SetCompact(header.nBits, &fNegative, &fOverflow);
+
+    if (fNegative || fOverflow)
+    {
+        LOG(WB, "Illegal value encountered when decoding target bits=%d\n", header.nBits);
+        return false;
+    }
+
+    if (bnTarget > UintToArith256(params.powLimit))
+    {
+        LOG(WB, "Illegal target value bnTarget=%d for pow limit\n", bnTarget.getdouble());
+        return false;
+    }
+
+    arith_uint256 pow = UintToArith256(header.GetHash());
+
+    return pow.getdouble() < GetKOSThreshold(bnTarget, k);
+}
+
 // to check wpow use sth like this:
 // if (!CheckProofOfWork(ahashMerkleRoot, weakPOWfromPOW(nBits), Consensus::Params(), true)) { ...
 unsigned int weakPOWfromPOW(unsigned int nBits) {
@@ -106,4 +122,14 @@ unsigned int weakPOWfromPOW(unsigned int nBits) {
     a /= 1000;
 
     return a.GetCompact();
+}
+
+double GetKOSThreshold(arith_uint256 target, uint8_t k)
+{
+    if (k == 0)
+        return true;
+
+    boost::math::gamma_distribution<> bobtail_gamma(k, target.getdouble());
+
+    return quantile(bobtail_gamma, KOS_INCLUSION_PROB);
 }
