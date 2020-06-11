@@ -111,7 +111,7 @@ bool CheckSubBlockPoW(const CBlockHeader header, const Consensus::Params &params
 
     arith_uint256 pow = UintToArith256(header.GetHash());
 
-    pow.getdouble() < GetKOSThreshold(bnTarget, k);
+    return pow.getdouble() < GetKOSThreshold(bnTarget, k);
 }
 
 // to check wpow use sth like this:
