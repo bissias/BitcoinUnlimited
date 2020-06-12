@@ -85,7 +85,7 @@ private:
 public:
     // network and disk
     std::vector<CTransactionRef> vtx;
-    
+
     // Xpress Validation: (memory only)
     //! Orphans, or Missing transactions that have been re-requested, are stored here.
     std::set<uint256> setUnVerifiedTxns;

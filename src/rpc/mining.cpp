@@ -5,10 +5,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "amount.h"
-#include "blockrelay/netdeltablocks.h"
 #include "blockstorage/blockstorage.h"
-#include "bobtail/bobtail.h"
-#include "bobtail/dag.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
@@ -40,7 +37,6 @@
 #include <univalue.h>
 
 using namespace std;
-extern CBobtailDagSet bobtailDagSet;
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
@@ -111,17 +107,22 @@ UniValue getnetworkhashps(const UniValue &params, bool fHelp)
 UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
     int nGenerate,
     uint64_t nMaxTries,
-    bool keepScript,
-    int weak_mode)
+    bool keepScript)
 {
     static const int nInnerLoopCount = 0x10000;
+    int nHeightStart = 0;
+    int nHeightEnd = 0;
+    int nHeight = 0;
 
+    { // Don't keep cs_main locked
+        LOCK(cs_main);
+        nHeightStart = chainActive.Height();
+        nHeight = nHeightStart;
+        nHeightEnd = nHeightStart + nGenerate;
+    }
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
-
-    int numblocks = 0;
-
-    while (numblocks < nGenerate)
+    while (nHeight < nHeightEnd)
     {
         std::unique_ptr<CBlockTemplate> pblocktemplate;
         {
@@ -130,59 +131,44 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
         }
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
-        LOG(WB, "Using delta block for RPC generate.\n");
-        CBlockRef pblock;
-        //TODO: MAKE SUBBLOCK COMPATIBLE
-        //pblock = pblocktemplate->delta_block;
-
+        CBlock *pblock = &pblocktemplate->block;
         {
             // LOCK(cs_main);
-            IncrementExtraNonce(pblock.get(), nExtraNonce);
+            IncrementExtraNonce(pblock, nExtraNonce);
         }
-
-        // Generally look for weak PoW
         while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount &&
-               !CheckProofOfWork(pblock->GetHash(), weakPOWfromPOW(pblock->nBits), Params().GetConsensus(), true))
+               !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus()))
         {
             ++pblock->nNonce;
             --nMaxTries;
         }
         if (nMaxTries == 0)
-            break;
-        if (pblock->nNonce == nInnerLoopCount)
-            continue;
-
-        LOG(WB, "PROCESS NEW WEAK\n");
-        //CDeltaBlock::processNew(pblock);
-        //TODO: PROCESS BLOCK
-        //CDeltaBlock::tryRegister(pblock);
-        //TODO: ACTUALLY CALL sendDeltaBlock here
-        //TODO: REGISTER BLOCK
-
-        // Now check if Bobtail PoW is also satisfied
-        // TODO: Use CheckBobtailPoW instead 
-        if (CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus()))
         {
-            // In we are mining our own block or not running in parallel for any reason
-            // we must terminate any block validation threads that are currently running,
-            // Unless they have more work than our own block or are processing a chain
-            // that has more work than our block.
-            PV->StopAllValidationThreads(pblock->GetBlockHeader().nBits);
-
-            CValidationState state;
-            if (!ProcessNewBlock(state, Params(), nullptr, pblock.get(), true, nullptr, false))
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
-
-            // mark script as important because it was used at least for one coinbase output if the script came from the
-            // wallet
-            if (keepScript)
-            {
-                coinbaseScript->KeepScript();
-            }
-            numblocks++;
-            LOG(WB, "DONE PROCESS NEW STRONG\n");
+            break;
         }
+        if (pblock->nNonce == nInnerLoopCount)
+        {
+            continue;
+        }
+
+        // In we are mining our own block or not running in parallel for any reason
+        // we must terminate any block validation threads that are currently running,
+        // Unless they have more work than our own block or are processing a chain
+        // that has more work than our block.
+        PV->StopAllValidationThreads(pblock->GetBlockHeader().nBits);
+
+        CValidationState state;
+        if (!ProcessNewBlock(state, Params(), nullptr, pblock, true, nullptr, false))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
+        ++nHeight;
         blockHashes.push_back(pblock->GetHash().GetHex());
+
+        // mark script as important because it was used at least for one coinbase output if the script came from the
+        // wallet
+        if (keepScript)
+        {
+            coinbaseScript->KeepScript();
+        }
     }
 
     CValidationState state;
@@ -195,14 +181,12 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
 
 UniValue generate(const UniValue &params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 3)
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error("generate numblocks ( maxtries )\n"
                             "\nMine up to numblocks blocks immediately (before the RPC call returns)\n"
                             "\nArguments:\n"
                             "1. numblocks    (numeric, required) How many blocks are generated immediately.\n"
                             "2. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
-                            "3. weak_mode     (numeric, optional) Should weak blocks be generated?\n"
-                            "                                    1 : only strong, 2: only weak, 3 : strong and weak\n"
                             "\nResult\n"
                             "[ blockhashes ]     (array) hashes of blocks generated\n"
                             "\nExamples:\n"
@@ -210,14 +194,11 @@ UniValue generate(const UniValue &params, bool fHelp)
                             HelpExampleCli("generate", "11"));
 
     int nGenerate = params[0].get_int();
-    uint64_t nMaxTries = 100000000;
+    uint64_t nMaxTries = 1000000;
     if (params.size() > 1)
     {
         nMaxTries = params[1].get_int();
     }
-    int weak_mode = 1;
-    if (params.size() > 2)
-        weak_mode = params[2].get_int();
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
@@ -230,7 +211,7 @@ UniValue generate(const UniValue &params, bool fHelp)
     if (coinbaseScript->reserveScript.empty())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No coinbase script available (mining requires a wallet)");
 
-    return generateBlocks(coinbaseScript, nGenerate, nMaxTries, true, weak_mode);
+    return generateBlocks(coinbaseScript, nGenerate, nMaxTries, true);
 }
 
 UniValue generatetoaddress(const UniValue &params, bool fHelp)
@@ -242,7 +223,6 @@ UniValue generatetoaddress(const UniValue &params, bool fHelp)
                             "1. numblocks    (numeric, required) How many blocks are generated immediately.\n"
                             "2. address    (string, required) The address to send the newly generated bitcoin to.\n"
                             "3. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
-                            "4. weak_mode     (numeric, optional) Generate weak blocks?\n"
                             "\nResult\n"
                             "[ blockhashes ]     (array) hashes of blocks generated\n"
                             "\nExamples:\n"
@@ -250,15 +230,11 @@ UniValue generatetoaddress(const UniValue &params, bool fHelp)
                             HelpExampleCli("generatetoaddress", "11 \"myaddress\""));
 
     int nGenerate = params[0].get_int();
-    uint64_t nMaxTries = 100000000;
+    uint64_t nMaxTries = 1000000;
     if (params.size() > 2)
     {
         nMaxTries = params[2].get_int();
     }
-
-    int weak_mode = 1;
-    if (params.size() > 3)
-        weak_mode = params[3].get_int();
 
     CTxDestination destination = DecodeDestination(params[1].get_str());
     if (!IsValidDestination(destination))
@@ -269,7 +245,7 @@ UniValue generatetoaddress(const UniValue &params, bool fHelp)
     boost::shared_ptr<CReserveScript> coinbaseScript(new CReserveScript());
     coinbaseScript->reserveScript = GetScriptForDestination(destination);
 
-    return generateBlocks(coinbaseScript, nGenerate, nMaxTries, false, weak_mode);
+    return generateBlocks(coinbaseScript, nGenerate, nMaxTries, false);
 }
 
 UniValue getmininginfo(const UniValue &params, bool fHelp)
@@ -456,7 +432,7 @@ static UniValue MkFullMiningCandidateJson(std::set<std::string> setClientRules,
     const unsigned int nTransactionsUpdatedLast)
 {
     bool may2020Enabled = IsMay2020Enabled(Params().GetConsensus(), pindexPrev);
-    CBlock *pblock = &*(pblocktemplate->block); // pointer for convenience
+    CBlock *pblock = &pblocktemplate->block; // pointer for convenience
     UniValue aCaps(UniValue::VARR);
     aCaps.push_back("proposal");
 
@@ -801,10 +777,10 @@ UniValue mkblocktemplate(const UniValue &params,
         LOG(RPC, "skipped block template construction tx: %d, last: %d  now:%d start:%d",
             mempool.GetTransactionsUpdated(), nTransactionsUpdatedLast, GetTime(), nStart);
     }
-    CBlockRef pblock = pblocktemplate->block; // pointer for convenience
+    CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
     // Update nTime
-    UpdateTime(pblock.get(), consensusParams, pindexPrev);
+    UpdateTime(pblock, consensusParams, pindexPrev);
     pblock->nNonce = 0;
 
     if (pblockOut != nullptr)

@@ -213,6 +213,39 @@ bool AcceptBobtailBlockBlockHeader(const CBlockHeader &block,
 // Block/chain
 //
 
+bool TestSubBlockValidity(CValidationState &state,
+    const CChainParams &chainparams,
+    const CSubBlock &block,
+    CBlockIndex *pindexPrev,
+    bool fCheckPOW,
+    bool fCheckMerkleRoot,
+    bool fConservative)
+{
+    AssertLockHeld(cs_main);
+    assert(pindexPrev && pindexPrev == chainActive.Tip());
+    // Ensure that if there is a checkpoint on this height, that this block is the one.
+    if (fCheckpointsEnabled && !CheckAgainstCheckpoint(pindexPrev->nHeight + 1, block.GetHash(), chainparams))
+        return error("%s: CheckAgainstCheckpoint(): %s", __func__, state.GetRejectReason().c_str());
+
+    CCoinsViewCache viewNew(pcoinsTip);
+    CBlockIndex indexDummy(block);
+    indexDummy.pprev = pindexPrev;
+    indexDummy.nHeight = pindexPrev->nHeight + 1;
+
+    // NOTE: CheckBlockHeader is called by CheckBlock
+    if (!ContextualCheckBlockHeader(block, state, pindexPrev))
+        return false;
+    if (!CheckBlock(block, state, fCheckPOW, fCheckMerkleRoot))
+        return false;
+    if (!ContextualCheckBlock(block, state, pindexPrev, fConservative))
+        return false;
+    if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
+        return false;
+    assert(state.IsValid());
+
+    return true;
+}
+
 bool CheckBobtailBlock(const CBobtailBlock &block, CValidationState &state, bool fCheckPOW, bool fCheckMerkleRoot)
 {
     if (fCheckPOW && !CheckBobtailPoW(block, Params().GetConsensus(), BOBTAIL_K))
