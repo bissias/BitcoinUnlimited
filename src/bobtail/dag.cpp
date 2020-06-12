@@ -71,6 +71,11 @@ void CBobtailDag::SetId(int16_t new_id)
 
 bool CBobtailDag::CheckForCompatibility(CDagNode* newNode)
 {
+    // we are already incompatible with this node, no need to check its inputs
+    if (incompatible_dags.count(newNode->dag_id))
+    {
+        return false;
+    }
     for (auto &tx : newNode->subblock.vtx)
     {
         for (auto &input : tx->vin)
