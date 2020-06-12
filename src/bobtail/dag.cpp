@@ -96,7 +96,7 @@ bool CBobtailDag::CheckForCompatibility(CDagNode* newNode)
 void CBobtailDag::UpdateCompatibility(const int16_t &new_id, const std::set<int16_t> &old_ids)
 {
     // the old_ids are being merged into a dag with the new_id. This merge means these dags
-    // were compatible. if a given dag was compatible with one of the old_ids it will be
+    // were compatible. if a given dag was incompatible with one of the old_ids it will be
     // incompatible with the new id.
     // Go through the dags and replace any incompatible dag entrys with an old_id with the
     // new id
