@@ -283,7 +283,10 @@ bool CBobtailDagSet::Insert(const CSubBlock &sub_block)
         return true;
     }
     newNode->dag_id = new_id;
-    vdags[new_id].CheckForCompatibility(newNode);
+    if (vdags[new_id].CheckForCompatibility(newNode) == false)
+    {
+        return false;
+    }
     vdags[new_id].Insert(newNode);
     // TODO : should insert to maintain temporal ordering not just emplace_back
     mapAllNodes.emplace(newNode->hash, newNode);
