@@ -1,4 +1,3 @@
-
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
 // Copyright (c) 2015-2018 The Bitcoin Unlimited developers
@@ -8,7 +7,6 @@
 #ifndef BITCOIN_VALIDATION_H
 #define BITCOIN_VALIDATION_H
 
-#include "bobtail/bobtailblock.h"
 #include "chainparams.h"
 #include "consensus/validation.h"
 #include "deltablocks.h"
@@ -125,6 +123,14 @@ bool ReceivedBlockTransactions(const CBlock &block,
     CBlockIndex *pindexNew,
     const CDiskBlockPos &pos);
 
+/** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
+bool AcceptBlock(const CBlock &block,
+    CValidationState &state,
+    const CChainParams &chainparams,
+    CBlockIndex **ppindex,
+    bool fRequested,
+    CDiskBlockPos *dbp);
+
 uint32_t GetBlockScriptFlags(const CBlockIndex *pindex, const Consensus::Params &consensusparams);
 
 /** Undo the effects of this block (with given index) on the UTXO set represented by coins.
@@ -132,6 +138,30 @@ uint32_t GetBlockScriptFlags(const CBlockIndex *pindex, const Consensus::Params 
  *  will be true if no problems were found. Otherwise, the return value will be false in case
  *  of problems. Note that in any case, coins may be modified. */
 DisconnectResult DisconnectBlock(const CBlock &block, const CBlockIndex *pindex, CCoinsViewCache &view);
+
+bool ConnectBlockDependencyOrdering(const CBlock &block,
+    CValidationState &state,
+    CBlockIndex *pindex,
+    CCoinsViewCache &view,
+    const CChainParams &chainparams,
+    bool fJustCheck,
+    bool fParallel,
+    bool fScriptChecks,
+    CAmount &nFees,
+    CBlockUndo &blockundo,
+    std::vector<std::pair<uint256, CDiskTxPos> > &vPos);
+
+bool ConnectBlockCanonicalOrdering(const CBlock &block,
+    CValidationState &state,
+    CBlockIndex *pindex,
+    CCoinsViewCache &view,
+    const CChainParams &chainparams,
+    bool fJustCheck,
+    bool fParallel,
+    bool fScriptChecks,
+    CAmount &nFees,
+    CBlockUndo &blockundo,
+    std::vector<std::pair<uint256, CDiskTxPos> > &vPos);
 
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins */
 bool ConnectBlock(const CBlock &block,
@@ -180,64 +210,5 @@ bool ProcessNewBlock(CValidationState &state,
 
 //! Check whether the block associated with this index entry is pruned or not.
 bool IsBlockPruned(const CBlockIndex *pblockindex);
-
-
-
-/* Bobtail methods
- */
-
-/** Context-independent validity checks */
-bool CheckSubBlockHeader(const CBlockHeader &block, CValidationState &state, bool fCheckPOW = true);
-
-bool AcceptSubBlockBlockHeader(const CBlockHeader &block,
-    CValidationState &state,
-    const CChainParams &chainparams,
-    CBlockIndex **ppindex = nullptr);
-
-//TODO: This should accept a CBobtailBlockHeader once it is defined
-bool CheckBobtailBlockHeader(const CBlockHeader &block, CValidationState &state);
-
-//TODO: This should accept a CBobtailBlockHeader once it is defined
-bool AcceptBobtailBlockBlockHeader(const CBlockHeader &block,
-    CValidationState &state,
-    const CChainParams &chainparams,
-    CBlockIndex **ppindex = nullptr);
-
-bool CheckBobtailBlock(const CBobtailBlock &block, CValidationState &state, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
-
-/** Apply the effects of this block (with given index) on the UTXO set represented by coins */
-bool ConnectBobtailBlock(const CBobtailBlock &block,
-    CValidationState &state,
-    CBlockIndex *pindex,
-    CCoinsViewCache &view,
-    const CChainParams &chainparams,
-    bool fJustCheck = false,
-    bool fParallel = false);
-
-/**
- * Process an incoming block. This only returns after the best known valid
- * block is made active. Note that it does not, however, guarantee that the
- * specific block passed to it has been checked for validity!
- *
- * @param[out]  state   This may be set to an Error state if any error occurred processing it, including during
- * validation/connection/etc of otherwise unrelated blocks during reorganisation; or it may be set to an Invalid state
- * if pblock is itself invalid (but this is not guaranteed even when the block is checked). If you want to *possibly*
- * get feedback on whether pblock is valid, you must also install a CValidationInterface (see validationinterface.h) -
- * this will have its BlockChecked method called whenever *any* block completes validation.
- * @param[in]   pfrom   The node which we are receiving the block from; it is added to mapBlockSource and may be
- * penalised if the block is invalid.
- * @param[in]   pblock  The block we want to process.
- * @param[in]   fForceProcessing Process this block even if unrequested; used for non-network block sources and
- * whitelisted peers.
- * @param[out]  dbp     If pblock is stored to disk (or already there), this will be set to its location.
- * @return True if state.IsValid()
- */
-bool ProcessNewBobtailBlock(CValidationState &state,
-    const CChainParams &chainparams,
-    CNode *pfrom,
-    const CBlock *pblock,
-    bool fForceProcessing,
-    CDiskBlockPos *dbp,
-    bool fParallel);
 
 #endif
