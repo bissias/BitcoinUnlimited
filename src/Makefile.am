@@ -129,6 +129,7 @@ BITCOIN_CORE_H = \
   blockstorage/sequential_files.h \
   bitnodes.h \
   bloom.h \
+  bobtail/validation.h \
   bobtaildb.h \
   cashaddr.h \
   cashaddrenc.h \
@@ -287,6 +288,7 @@ libbitcoin_server_a_SOURCES = \
   blockstorage/sequential_files.cpp \
   blockstorage/blockstorage.cpp \
   bloom.cpp \
+  bobtail/validation.cpp \
   bobtaildb.cpp \
   chain.cpp \
   checkpoints.cpp \
