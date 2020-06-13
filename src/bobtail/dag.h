@@ -7,6 +7,7 @@
 
 #include "uint256.h"
 #include "subblock.h"
+#include "sync.h"
 
 #include <deque>
 #include <queue>
@@ -77,6 +78,8 @@ public:
 class CBobtailDagSet
 {
 protected:
+    CRecursiveSharedCriticalSection cs_dagset;
+    
     std::vector<CBobtailDag> vdags;
     std::map<uint256, CDagNode*> mapAllNodes;
 

@@ -146,6 +146,7 @@ bool CBobtailDag::Insert(CDagNode* new_node)
 
 void CBobtailDagSet::SetNewIds(std::priority_queue<int16_t> &removed_ids)
 {
+    RECURSIVEWRITELOCK(cs_dagset);
     int16_t last_value;
     for (auto riter = vdags.rbegin(); riter != vdags.rend(); ++riter)
     {
@@ -180,6 +181,7 @@ void CBobtailDagSet::SetNewIds(std::priority_queue<int16_t> &removed_ids)
 
 void CBobtailDagSet::CreateNewDag(CDagNode *newNode)
 {
+    RECURSIVEWRITELOCK(cs_dagset);
     int16_t new_id = vdags.size();
     newNode->dag_id = new_id;
     vdags.emplace_back(new_id, newNode);
@@ -192,6 +194,7 @@ void CBobtailDagSet::CreateNewDag(CDagNode *newNode)
 
 bool CBobtailDagSet::MergeDags(std::set<int16_t> &tree_ids, int16_t &new_id)
 {
+    RECURSIVEWRITELOCK(cs_dagset);
     int16_t base_dag_id = *(tree_ids.begin());
     // remove the first element, it is not being deleted
     tree_ids.erase(tree_ids.begin());
@@ -227,11 +230,13 @@ bool CBobtailDagSet::MergeDags(std::set<int16_t> &tree_ids, int16_t &new_id)
 
 void CBobtailDagSet::Clear()
 {
+    RECURSIVEWRITELOCK(cs_dagset);
     vdags.clear();
 }
 
 CDagNode* CBobtailDagSet::Find(const uint256 &hash)
 {
+    RECURSIVEREADLOCK(cs_dagset);
     std::map<uint256, CDagNode*>::iterator iter = mapAllNodes.find(hash);
     if (iter != mapAllNodes.end())
     {
@@ -242,6 +247,7 @@ CDagNode* CBobtailDagSet::Find(const uint256 &hash)
 
 bool CBobtailDagSet::Insert(const CSubBlock &sub_block)
 {
+    RECURSIVEWRITELOCK(cs_dagset);
     uint256 sub_block_hash = sub_block.GetHash();
     CDagNode* temp = Find(sub_block_hash);
     if (temp != nullptr)
@@ -314,6 +320,7 @@ bool CBobtailDagSet::IsTemporallySorted()
 
 bool CBobtailDagSet::GetBestDag(std::set<CDagNode*> &dag)
 {
+    RECURSIVEREADLOCK(cs_dagset);
     if (vdags.empty())
     {
         return false;
@@ -353,6 +360,7 @@ bool CBobtailDagSet::GetBestDag(std::set<CDagNode*> &dag)
 // check the dags to make sure that they are not conflicting.
 std::vector<uint256> CBobtailDagSet::GetTips()
 {
+    RECURSIVEREADLOCK(cs_dagset);
     std::vector<uint256> tip_hashes;
     uint64_t best_dag_score = 0;
     int16_t best_dag = -1;
