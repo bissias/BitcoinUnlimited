@@ -101,6 +101,9 @@ private:
 public:
     SubBlockAssembler(const CChainParams &chainparams);
 
+    /** Internal method to construct a new block template */
+    std::unique_ptr<CSubBlockTemplate> CreateNewSubBlock(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
+
 private:
     // utility functions
     /** Clear the block's state and prepare for assembling a new block */
@@ -129,8 +132,6 @@ private:
 
     /** Bytes to reserve for coinbase and block header */
     uint64_t reserveBlockSize(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
-    /** Internal method to construct a new block template */
-    std::unique_ptr<CSubBlockTemplate> CreateNewBlock(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
     /** Constructs a coinbase transaction */
     CTransactionRef proofbaseTx(const CScript &scriptPubKeyIn, int nHeight, CAmount nValue, const std::vector<uint256> &ancestor_hashes);
 

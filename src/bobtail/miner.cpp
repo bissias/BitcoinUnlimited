@@ -185,7 +185,7 @@ public:
     }
 };
 
-std::unique_ptr<CSubBlockTemplate> SubBlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn,
+std::unique_ptr<CSubBlockTemplate> SubBlockAssembler::CreateNewSubBlock(const CScript &scriptPubKeyIn,
     int64_t coinbaseSize)
 {
     resetBlock(scriptPubKeyIn, coinbaseSize);
@@ -246,7 +246,7 @@ std::unique_ptr<CSubBlockTemplate> SubBlockAssembler::CreateNewBlock(const CScri
 
         bobtail_nLastBlockTx = nBlockTx;
         bobtail_nLastBlockSize = nBlockSize;
-        LOGA("CreateNewBlock: total size %llu txs: %llu of %llu fees: %lld sigops %u\n", nBlockSize, nBlockTx,
+        LOGA("CreateNewSubBlock: total size %llu txs: %llu of %llu fees: %lld sigops %u\n", nBlockSize, nBlockTx,
             mempool._size(), nFees, nBlockSigOps);
 
 
