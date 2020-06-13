@@ -319,7 +319,7 @@ bool CBobtailDagSet::GetBestDag(std::set<CDagNode*> &dag)
         return false;
     }
     int16_t best_dag = -1;
-    uint64_t best_dag_score = -1;
+    uint64_t best_dag_score = 0;
     // Get all dags that are big enough
     for (size_t i = 0; i < vdags.size(); ++i)
     {
@@ -327,9 +327,14 @@ bool CBobtailDagSet::GetBestDag(std::set<CDagNode*> &dag)
         {
             continue;
         }
-        if (vdags[i].score > best_dag_score)
+        if (best_dag == -1)
         {
             best_dag = i;
+        }
+        else if (vdags[i].score > best_dag_score)
+        {
+            best_dag = i;
+            best_dag_score = vdags[i].score;
         }
     }
     if (best_dag < 0)
@@ -349,13 +354,19 @@ bool CBobtailDagSet::GetBestDag(std::set<CDagNode*> &dag)
 std::vector<uint256> CBobtailDagSet::GetTips()
 {
     std::vector<uint256> tip_hashes;
+    uint64_t best_dag_score = 0;
     int16_t best_dag = -1;
     // first find the best dag, we want to mine on top of this one.
     for (auto& dag : vdags)
     {
-        if (dag.score > best_dag)
+        if (best_dag == -1)
         {
             best_dag = dag.id;
+        }
+        else if (dag.score > best_dag_score)
+        {
+            best_dag = dag.id;
+            best_dag_score = dag.score;
         }
     }
     // check if we found a best dag
