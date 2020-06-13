@@ -104,4 +104,6 @@ public:
     std::vector<uint256> GetTips();
 };
 
+extern CBobtailDagSet bobtailDagSet;
+
 #endif
