@@ -7,6 +7,7 @@
 #ifndef BITCOIN_MINER_COMMON_H
 #define BITCOIN_MINER_COMMON_H
 
+#include "bobtail/subblock.h"
 #include "chain.h"
 #include "consensus/params.h"
 #include "primitives/block.h"
@@ -24,6 +25,7 @@ public:
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock *pblock, unsigned int &nExtraNonce);
+void IncrementExtraNonce(CSubBlock *pblock, unsigned int &nExtraNonce);
 int64_t UpdateTime(CBlockHeader *pblock, const Consensus::Params &consensusParams, const CBlockIndex *pindexPrev);
 
 #endif
