@@ -142,11 +142,24 @@ CTransactionRef SubBlockAssembler::proofbaseTx(const CScript &scriptPubKeyIn, in
     tx.vout[0].nValue = nValue;
     tx.vin[0].scriptSig = CScript() << _nHeight << OP_0;
     // subblocks have their ancestors in ctxins inside the proofbase
-    for (auto &ancestor : ancestor_hashes)
+    // there must be at a minimum 2 ctxins, if we have no ancestor hashes, the second one is null
+    if (ancestor_hashes.empty())
     {
         COutPoint outpoint;
-        outpoint.hash = ancestor;
+        outpoint.SetNull();
+        // this n value is arbitrary, we do this so the COutPoints arent
+        // identical which would cause a proofbase tx to fail CheckTransaction
+        outpoint.n = 0;
         tx.vin.emplace_back(CTxIn(outpoint));
+    }
+    else
+    {
+        for (auto &ancestor : ancestor_hashes)
+        {
+            COutPoint outpoint;
+            outpoint.hash = ancestor;
+            tx.vin.emplace_back(CTxIn(outpoint));
+        }
     }
 
     // BU005 add block size settings to the coinbase
