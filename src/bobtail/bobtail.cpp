@@ -4,6 +4,8 @@
 
 #include "bobtail.h"
 #include "bobtailblock.h"
+#include "dag.h"
+
 #include <boost/math/distributions/gamma.hpp>
 
 bool IsSubBlockMalformed(const CSubBlock &subblock)
@@ -28,6 +30,15 @@ bool IsSubBlockMalformed(const CSubBlock &subblock)
         {
             return true;
         }
+    }
+    return false;
+}
+
+bool ProcessNewSubBlock(const CSubBlock &subblock)
+{
+    if (IsSubBlockMalformed(subblock) == false)
+    {
+        return bobtailDagSet.Insert(subblock);
     }
     return false;
 }
