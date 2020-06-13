@@ -133,7 +133,7 @@ private:
     /** Bytes to reserve for coinbase and block header */
     uint64_t reserveBlockSize(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
     /** Constructs a coinbase transaction */
-    CTransactionRef proofbaseTx(const CScript &scriptPubKeyIn, int nHeight, CAmount nValue, const std::vector<uint256> &ancestor_hashes);
+    CTransactionRef proofbaseTx(const CScript &scriptPubKeyIn, int nHeight, const std::vector<uint256> &ancestor_hashes);
 
     // helper functions for addPackageTxs()
     /** Test whether a package, if added to the block, would make the block exceed the sigops limits */
