@@ -186,10 +186,56 @@ UniValue generatebobtailtoaddress(const UniValue &params, bool fHelp)
     return generateBobtailBlocks(coinbaseScript, nGenerate, nMaxTries, false, weak_mode);
 }
 
+UniValue getdaginfo(const UniValue &params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+    {
+        throw std::runtime_error(
+            "getdaginfo\n"
+            "Returns an object containing info about the current bobtail dag.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"size\": xxxxx,           (numeric) the number of dag nodes in the dag\n"
+            "}\n"
+            "\nExamples:\n" +
+            HelpExampleCli("getdaginfo", "") + HelpExampleRpc("getdaginfo", ""));
+    }
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("size", bobtailDagSet.Size());
+
+    return obj;
+}
+
+UniValue getdagtips(const UniValue &params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+    {
+        throw std::runtime_error(
+            "getdaginfo\n"
+            "Returns an object containing info about the current bobtail dag.\n"
+            "\nResult:\n"
+            "{\n"
+                "[ blockhashes ]     (array) hashes of the subblocks at the dag tips\n"
+            "}\n"
+            "\nExamples:\n" +
+            HelpExampleCli("getdaginfo", "") + HelpExampleRpc("getdaginfo", ""));
+    }
+
+    UniValue obj(UniValue::VARR);
+    std::vector<uint256> tip_hashes = bobtailDagSet.GetTips();
+    for (auto &hash : tip_hashes)
+    {
+        obj.push_back(hash.GetHex());
+    }
+    return obj;
+}
+
 static const CRPCCommand commands[] = {
     //  category              name                      actor (function)         okSafeMode
     //  --------------------- ------------------------  -----------------------  ----------
     {"generating", "generatebobtail", &generatebobtail, true}, {"generating", "generatebobtailtoaddress", &generatebobtailtoaddress, true},
+    {"bobtail", "getdaginfo", &getdaginfo, true}, {"bobtail", "getdagtips", &getdagtips, true},
 };
 
 void RegisterBobtailRPCCommands(CRPCTable &table)

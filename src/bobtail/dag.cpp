@@ -234,6 +234,12 @@ void CBobtailDagSet::Clear()
     vdags.clear();
 }
 
+size_t CBobtailDagSet::Size()
+{
+    RECURSIVEREADLOCK(cs_dagset);
+    return mapAllNodes.size();
+}
+
 CDagNode* CBobtailDagSet::Find(const uint256 &hash)
 {
     RECURSIVEREADLOCK(cs_dagset);
