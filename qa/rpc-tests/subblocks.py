@@ -45,7 +45,12 @@ class DeltaBlocksTest(BitcoinTestFramework):
         for i in range(5):
             self.nodes[0].sendtoaddress(addr, Decimal("10"))
 
-        self.nodes[0].generatebobtail(30)
+        node_count = 0
+        for i in range(30):
+            new_block = self.nodes[0].generatebobtail(1)
+            assert_equal(new_block, self.nodes[0].getdagtips())
+            node_count = node_count + 1
+            assert_equal(self.nodes[0].getdaginfo()["size"], node_count)
 
         self.sync_blocks()
 
