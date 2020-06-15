@@ -107,7 +107,7 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
     return blockHashes;
 }
 
-UniValue generatebobtail(const UniValue &params, bool fHelp)
+UniValue generatesubblocks(const UniValue &params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw std::runtime_error("generate numblocks ( maxtries )\n"
@@ -147,7 +147,7 @@ UniValue generatebobtail(const UniValue &params, bool fHelp)
     return generateBobtailBlocks(coinbaseScript, nGenerate, nMaxTries, true, weak_mode);
 }
 
-UniValue generatebobtailtoaddress(const UniValue &params, bool fHelp)
+UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw std::runtime_error("generatetoaddress numblocks address (maxtries)\n"
@@ -234,7 +234,7 @@ UniValue getdagtips(const UniValue &params, bool fHelp)
 static const CRPCCommand commands[] = {
     //  category              name                      actor (function)         okSafeMode
     //  --------------------- ------------------------  -----------------------  ----------
-    {"generating", "generatebobtail", &generatebobtail, true}, {"generating", "generatebobtailtoaddress", &generatebobtailtoaddress, true},
+    {"generating", "generatesubblocks", &generatesubblocks, true}, {"generating", "generatesubblockstoaddress", &generatesubblockstoaddress, true},
     {"bobtail", "getdaginfo", &getdaginfo, true}, {"bobtail", "getdagtips", &getdagtips, true},
 };
 
