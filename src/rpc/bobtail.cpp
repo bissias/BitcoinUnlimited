@@ -68,7 +68,7 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
 
         // Generally look for weak PoW
         while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount &&
-               !CheckProofOfWork(pblock->GetHash(), weakPOWfromPOW(pblock->nBits), Params().GetConsensus(), true))
+               !CheckSubBlockPoW(*pblock, Params().GetConsensus(), BOBTAIL_K))
         {
             ++pblock->nNonce;
             --nMaxTries;
@@ -78,8 +78,7 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
         if (pblock->nNonce == nInnerLoopCount)
             continue;
 
-        // Now check if Bobtail PoW is also satisfied
-        if (CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus()))
+        if (CheckSubBlockPoW(*pblock, Params().GetConsensus(), BOBTAIL_K))
         {
             // In we are mining our own block or not running in parallel for any reason
             // we must terminate any block validation threads that are currently running,

@@ -100,7 +100,7 @@ bool CheckBobtailPoWFromOrderedProofs(std::vector<arith_uint256> proofs, arith_u
     return false;
 }
 
-bool CheckSubBlockPoW(const CBlockHeader header, const Consensus::Params &params, uint8_t k)
+bool CheckSubBlockPoW(const CBlockHeader &header, const Consensus::Params &params, uint8_t k)
 {
     arith_uint256 bnTarget;
     bool fNegative;
