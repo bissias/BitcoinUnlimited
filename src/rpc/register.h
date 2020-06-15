@@ -12,6 +12,8 @@ class CRPCTable;
 
 /** Register block chain RPC commands */
 void RegisterBlockchainRPCCommands(CRPCTable &tableRPC);
+/** Register bobtail RPC commands */
+void RegisterBobtailRPCCommands(CRPCTable &tableRPC);
 /** Register P2P networking RPC commands */
 void RegisterNetRPCCommands(CRPCTable &tableRPC);
 /** Register miscellaneous RPC commands */
@@ -23,19 +25,17 @@ void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
 /** Register Bitcoin Unlimited's RPC commands */
 void RegisterUnlimitedRPCCommands(CRPCTable &tableRPC);
 void RegisterElectrumRPC(CRPCTable &tableRPC);
-/** Register weak / delta blocks RPC commands */
-void RegisterDeltaRPCCommands(CRPCTable &table);
 
 static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
 {
     RegisterBlockchainRPCCommands(tableRPC);
+    RegisterBobtailRPCCommands(tableRPC);
     RegisterNetRPCCommands(tableRPC);
     RegisterMiscRPCCommands(tableRPC);
     RegisterMiningRPCCommands(tableRPC);
     RegisterRawTransactionRPCCommands(tableRPC);
     RegisterUnlimitedRPCCommands(tableRPC);
     RegisterElectrumRPC(tableRPC);
-    RegisterDeltaRPCCommands(tableRPC);
 }
 
 #endif // BITCOIN_RPC_REGISTER_H

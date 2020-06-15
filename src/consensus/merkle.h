@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <vector>
 
+#include "bobtail/subblock.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"
 #include "uint256.h"
@@ -34,6 +35,7 @@ uint256 ComputeMerkleRootFromBranch(const uint256 &leaf, const std::vector<uint2
  * *mutated is set to true if a duplicated subtree was found.
  */
 uint256 BlockMerkleRoot(const CBlock &block, bool *mutated = nullptr);
+uint256 BlockMerkleRoot(const CSubBlock &block, bool *mutated = nullptr);
 
 /*
  * Compute the Merkle branch for the tree of transactions in a block, for a

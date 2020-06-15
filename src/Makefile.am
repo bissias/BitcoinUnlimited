@@ -121,7 +121,6 @@ BITCOIN_CORE_H = \
   blockrelay/graphene.h \
   blockrelay/graphene_set.h \
   blockrelay/mempool_sync.h \
-  blockrelay/netdeltablocks.h \
   blockrelay/thinblock.h \
   blockstorage/blockleveldb.h \
   blockstorage/blockstorage.h \
@@ -129,7 +128,11 @@ BITCOIN_CORE_H = \
   blockstorage/sequential_files.h \
   bitnodes.h \
   bloom.h \
+  bobtail/bobtail.h \
+  bobtail/bobtailblock.h \
+  bobtail/dag.h \
   bobtail/miner.h \
+  bobtail/subblock.h \
   bobtail/validation.h \
   bobtaildb.h \
   cashaddr.h \
@@ -158,7 +161,6 @@ BITCOIN_CORE_H = \
   deadlock-detection/locklocation.h \
   deadlock-detection/lockorder.h \
   deadlock-detection/threaddeadlock.h \
-  deltablocks.h \
   dosman.h \
   dstencode.h \
   expedited.h \
@@ -284,20 +286,21 @@ libbitcoin_server_a_SOURCES = \
   blockrelay/graphene.cpp \
   blockrelay/graphene_set.cpp \
   blockrelay/mempool_sync.cpp \
-  blockrelay/netdeltablocks.cpp \
   blockrelay/thinblock.cpp \
   blockstorage/blockleveldb.cpp \
   blockstorage/sequential_files.cpp \
   blockstorage/blockstorage.cpp \
   bloom.cpp \
+  bobtail/bobtail.cpp \
+  bobtail/dag.cpp \
   bobtail/miner.cpp \
+  bobtail/subblock.cpp \
   bobtail/validation.cpp \
   bobtaildb.cpp \
   chain.cpp \
   checkpoints.cpp \
   connmgr.cpp \
   consensus/tx_verify.cpp \
-  deltablocks.cpp \
   dosman.cpp \
   expedited.cpp \
   electrum/electrs.cpp \
@@ -325,9 +328,9 @@ libbitcoin_server_a_SOURCES = \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
+  rpc/bobtail.cpp \
   rpc/client.cpp \
   rpc/electrum.cpp \
-  rpc/deltablocks.cpp \
   rpc/mining.cpp \
   rpc/misc.cpp \
   rpc/net.cpp \
@@ -491,13 +494,6 @@ libbitcoin_consensus_a_SOURCES = \
   amount.h \
   arith_uint256.cpp \
   arith_uint256.h \
-  bobtail/bobtail.cpp \
-  bobtail/bobtail.h \
-  bobtail/bobtailblock.h \
-  bobtail/dag.cpp \
-  bobtail/dag.h \
-  bobtail/subblock.cpp \
-  bobtail/subblock.h \
   consensus/merkle.cpp \
   consensus/merkle.h \
   consensus/params.h \

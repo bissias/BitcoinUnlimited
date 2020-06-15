@@ -213,6 +213,76 @@ bool AcceptBobtailBlockBlockHeader(const CBlockHeader &block,
 // Block/chain
 //
 
+bool CheckSubBlock(const CSubBlock &block, CValidationState &state, bool fCheckPOW, bool fCheckMerkleRoot)
+{
+    // These are checks that are independent of context.
+
+    // Check that the header is valid (particularly PoW).  This is mostly
+    // redundant with the call in AcceptBlockHeader.
+    if (!CheckSubBlockHeader(block, state, fCheckPOW))
+        return false;
+
+    // Check the merkle root.
+    if (fCheckMerkleRoot)
+    {
+        bool mutated;
+        uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
+        if (block.hashMerkleRoot != hashMerkleRoot2)
+            return state.DoS(
+                100, error("CheckSubBlock(): hashMerkleRoot mismatch"), REJECT_INVALID, "bad-txnmrklroot", true);
+
+        // Check for merkle tree malleability (CVE-2012-2459): repeating sequences
+        // of transactions in a block without affecting the merkle root of a block,
+        // while still invalidating it.
+        if (mutated)
+            return state.DoS(
+                100, error("CheckSubBlock(): duplicate transaction"), REJECT_INVALID, "bad-txns-duplicate", true);
+    }
+
+    // All potential-corruption validation must be done before we do any
+    // transaction validation, as otherwise we may mark the header as invalid
+    // because we receive the wrong transactions for it.
+
+    // Size limits
+    if (block.vtx.empty())
+    {
+        return state.DoS(100, error("CheckSubBlock(): size limits failed"), REJECT_INVALID, "bad-blk-length");
+    }
+
+    // First transaction must be proofbase, the rest must not be
+    if (block.vtx.empty() || !block.vtx[0]->IsProofBase())
+    {
+        return state.DoS(100, error("CheckSubBlock(): first tx is not proofbase"), REJECT_INVALID, "bad-pb-missing");
+    }
+
+    for (unsigned int i = 1; i < block.vtx.size(); i++)
+    {
+        if (block.vtx[i]->IsProofBase())
+        {
+            return state.DoS(100, error("CheckSubBlock(): more than one proofbase"), REJECT_INVALID, "bad-pb-multiple");
+        }
+    }
+
+    for (unsigned int i = 0; i < block.vtx.size(); i++)
+    {
+        if (block.vtx[i]->IsCoinBase())
+        {
+            return state.DoS(100, error("CheckSubBlock(): subblock contains a coinbase"), REJECT_INVALID, "bad-cb-contains");
+        }
+    }
+
+    // Check transactions
+    for (const auto &tx : block.vtx)
+    {
+        if (!CheckTransaction(tx, state))
+        {
+            return error("CheckSubBlock(): CheckTransaction of %s failed with %s", tx->GetHash().ToString(),
+                FormatStateMessage(state));
+        }
+    }
+    return true;
+}
+
 bool TestSubBlockValidity(CValidationState &state,
     const CChainParams &chainparams,
     const CSubBlock &block,
@@ -235,11 +305,9 @@ bool TestSubBlockValidity(CValidationState &state,
     // NOTE: CheckBlockHeader is called by CheckBlock
     if (!ContextualCheckBlockHeader(block, state, pindexPrev))
         return false;
-    if (!CheckBlock(block, state, fCheckPOW, fCheckMerkleRoot))
+    if (!CheckSubBlock(block, state, fCheckPOW, fCheckMerkleRoot))
         return false;
     if (!ContextualCheckBlock(block, state, pindexPrev, fConservative))
-        return false;
-    if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
         return false;
     assert(state.IsValid());
 

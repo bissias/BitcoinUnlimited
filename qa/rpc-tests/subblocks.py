@@ -36,9 +36,7 @@ class DeltaBlocksTest(BitcoinTestFramework):
         self.sync_all()
 
     def run_test(self):
-        # Generate blocks so we can send a few transactions.  We need some transactions in a block
-        # before a graphene block can be sent and created, otherwise we'll just end up sending a regular
-        # block.
+        # Generate some blocks
         self.nodes[0].generate(105)
         self.sync_blocks()
 
@@ -47,7 +45,12 @@ class DeltaBlocksTest(BitcoinTestFramework):
         for i in range(5):
             self.nodes[0].sendtoaddress(addr, Decimal("10"))
 
-        self.nodes[0].generate(1)
+        node_count = 0
+        for i in range(30):
+            new_block = self.nodes[0].generatebobtail(1)
+            assert_equal(new_block, self.nodes[0].getdagtips())
+            node_count = node_count + 1
+            assert_equal(self.nodes[0].getdaginfo()["size"], node_count)
 
         self.sync_blocks()
 

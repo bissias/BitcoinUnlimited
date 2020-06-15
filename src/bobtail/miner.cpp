@@ -112,7 +112,7 @@ uint64_t SubBlockAssembler::reserveBlockSize(const CScript &scriptPubKeyIn, int6
 
     // This serializes with output value, a fixed-length 8 byte field, of zero and height, a serialized CScript
     // signed integer taking up 4 bytes for heights 32768-8388607 (around the year 2167) after which it will use 5
-    nCoinbaseSize = ::GetSerializeSize(proofbaseTx(scriptPubKeyIn, 400000, 0, bobtailDagSet.GetTips()), SER_NETWORK, PROTOCOL_VERSION);
+    nCoinbaseSize = ::GetSerializeSize(proofbaseTx(scriptPubKeyIn, 400000, bobtailDagSet.GetTips()), SER_NETWORK, PROTOCOL_VERSION);
 
     if (coinbaseSize >= 0) // Explicit size of coinbase has been requested
     {
@@ -130,23 +130,33 @@ uint64_t SubBlockAssembler::reserveBlockSize(const CScript &scriptPubKeyIn, int6
 
     return nHeaderSize + nCoinbaseSize;
 }
-CTransactionRef SubBlockAssembler::proofbaseTx(const CScript &scriptPubKeyIn, int _nHeight, CAmount nValue,
+CTransactionRef SubBlockAssembler::proofbaseTx(const CScript &scriptPubKeyIn, int _nHeight,
     const std::vector<uint256> &ancestor_hashes)
 {
     CMutableTransaction tx;
 
     tx.vin.resize(1);
     tx.vin[0].prevout.SetNull();
-    tx.vout.resize(1);
-    tx.vout[0].scriptPubKey = scriptPubKeyIn;
-    tx.vout[0].nValue = nValue;
     tx.vin[0].scriptSig = CScript() << _nHeight << OP_0;
     // subblocks have their ancestors in ctxins inside the proofbase
-    for (auto &ancestor : ancestor_hashes)
+    // there must be at a minimum 2 ctxins, if we have no ancestor hashes, the second one is null
+    if (ancestor_hashes.empty())
     {
         COutPoint outpoint;
-        outpoint.hash = ancestor;
+        outpoint.SetNull();
+        // this n value is arbitrary, we do this so the COutPoints arent
+        // identical which would cause a proofbase tx to fail CheckTransaction
+        outpoint.n = 0;
         tx.vin.emplace_back(CTxIn(outpoint));
+    }
+    else
+    {
+        for (auto &ancestor : ancestor_hashes)
+        {
+            COutPoint outpoint;
+            outpoint.hash = ancestor;
+            tx.vin.emplace_back(CTxIn(outpoint));
+        }
     }
 
     // BU005 add block size settings to the coinbase
@@ -185,7 +195,7 @@ public:
     }
 };
 
-std::unique_ptr<CSubBlockTemplate> SubBlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn,
+std::unique_ptr<CSubBlockTemplate> SubBlockAssembler::CreateNewSubBlock(const CScript &scriptPubKeyIn,
     int64_t coinbaseSize)
 {
     resetBlock(scriptPubKeyIn, coinbaseSize);
@@ -246,7 +256,7 @@ std::unique_ptr<CSubBlockTemplate> SubBlockAssembler::CreateNewBlock(const CScri
 
         bobtail_nLastBlockTx = nBlockTx;
         bobtail_nLastBlockSize = nBlockSize;
-        LOGA("CreateNewBlock: total size %llu txs: %llu of %llu fees: %lld sigops %u\n", nBlockSize, nBlockTx,
+        LOGA("CreateNewSubBlock: total size %llu txs: %llu of %llu fees: %lld sigops %u\n", nBlockSize, nBlockTx,
             mempool._size(), nFees, nBlockSigOps);
 
 
@@ -262,7 +272,7 @@ std::unique_ptr<CSubBlockTemplate> SubBlockAssembler::CreateNewBlock(const CScri
 
         // Create coinbase transaction.
         pblock->vtx[0] =
-            proofbaseTx(scriptPubKeyIn, nHeight, nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus()), bobtailDagSet.GetTips());
+            proofbaseTx(scriptPubKeyIn, nHeight, bobtailDagSet.GetTips());
         pblocktemplate->vTxFees[0] = -nFees;
 
         // Fill in header
