@@ -1685,18 +1685,6 @@ bool ProcessMessage(CNode *pfrom, std::string strCommand, CDataStream &vRecv, in
         return CXThinBlockTx::HandleMessage(vRecv, pfrom);
     }
 
-    // Handle delta/weak blocks
-    else if (strCommand == NetMsgType::DBMISSTX && !fImporting && !fReindex /* && CDeltaBlock::isEnabled()*/)
-    {
-        // FIXME: depend on deltablock enable
-        return CNetDeltaRequestMissing::HandleMessage(vRecv, pfrom);
-    }
-    else if (strCommand == NetMsgType::DELTABLOCK && !fImporting && !fReindex /* && CDeltaBlock::isEnabled() */)
-    {
-        // FIXME: depend on deltablock enable
-        return CNetDeltaBlock::HandleMessage(vRecv, pfrom);
-    }
-
     // Handle Graphene blocks
     else if (strCommand == NetMsgType::GET_GRAPHENE && !fImporting && !fReindex && IsGrapheneBlockEnabled() &&
              grapheneVersionCompatible)
