@@ -40,8 +40,7 @@ extern CBobtailDagSet bobtailDagSet;
 UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
     int nGenerate,
     uint64_t nMaxTries,
-    bool keepScript,
-    int weak_mode)
+    bool keepScript)
 {
     static const int nInnerLoopCount = 0x10000;
 
@@ -114,8 +113,6 @@ UniValue generatesubblocks(const UniValue &params, bool fHelp)
                             "\nArguments:\n"
                             "1. numblocks    (numeric, required) How many blocks are generated immediately.\n"
                             "2. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
-                            "3. weak_mode     (numeric, optional) Should weak blocks be generated?\n"
-                            "                                    1 : only strong, 2: only weak, 3 : strong and weak\n"
                             "\nResult\n"
                             "[ blockhashes ]     (array) hashes of blocks generated\n"
                             "\nExamples:\n"
@@ -128,9 +125,6 @@ UniValue generatesubblocks(const UniValue &params, bool fHelp)
     {
         nMaxTries = params[1].get_int();
     }
-    int weak_mode = 1;
-    if (params.size() > 2)
-        weak_mode = params[2].get_int();
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
@@ -143,7 +137,7 @@ UniValue generatesubblocks(const UniValue &params, bool fHelp)
     if (coinbaseScript->reserveScript.empty())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No coinbase script available (mining requires a wallet)");
 
-    return generateBobtailBlocks(coinbaseScript, nGenerate, nMaxTries, true, weak_mode);
+    return generateBobtailBlocks(coinbaseScript, nGenerate, nMaxTries, true);
 }
 
 UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
@@ -155,7 +149,6 @@ UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
                             "1. numblocks    (numeric, required) How many blocks are generated immediately.\n"
                             "2. address    (string, required) The address to send the newly generated bitcoin to.\n"
                             "3. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
-                            "4. weak_mode     (numeric, optional) Generate weak blocks?\n"
                             "\nResult\n"
                             "[ blockhashes ]     (array) hashes of blocks generated\n"
                             "\nExamples:\n"
@@ -169,10 +162,6 @@ UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
         nMaxTries = params[2].get_int();
     }
 
-    int weak_mode = 1;
-    if (params.size() > 3)
-        weak_mode = params[3].get_int();
-
     CTxDestination destination = DecodeDestination(params[1].get_str());
     if (!IsValidDestination(destination))
     {
@@ -182,7 +171,7 @@ UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
     boost::shared_ptr<CReserveScript> coinbaseScript(new CReserveScript());
     coinbaseScript->reserveScript = GetScriptForDestination(destination);
 
-    return generateBobtailBlocks(coinbaseScript, nGenerate, nMaxTries, false, weak_mode);
+    return generateBobtailBlocks(coinbaseScript, nGenerate, nMaxTries, false);
 }
 
 UniValue getdaginfo(const UniValue &params, bool fHelp)
