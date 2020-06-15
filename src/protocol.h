@@ -362,16 +362,10 @@ extern const char *GETBLOCKTXN;
 extern const char *BLOCKTXN;
 
 /**
- * Contains a CNetDeltaRequestMissing
- * Sent to request a delta block or re-request a delta block that could not be properly decoded.
+ * Contains a CSubBlock
+ * Sent to peers to inform them about new sub blocks
  */
-extern const char *DBMISSTX;
-
-/**
- * Contains a CNetDeltaBlock
- * Sent to peers to inform them about new delta blocks. (Which might be strong blocks!)
- */
-extern const char *DELTABLOCK;
+extern const char *SUBBLOCK;
 };
 
 
@@ -521,6 +515,8 @@ enum
     MSG_THINBLOCK = MSG_CMPCT_BLOCK,
     // Uses Graphene set reconciliation to syncronize mempools between two peers.
     MSG_MEMPOOLSYNC,
+    //
+    MSG_SUBBLOCK,
 };
 
 #endif // BITCOIN_PROTOCOL_H
