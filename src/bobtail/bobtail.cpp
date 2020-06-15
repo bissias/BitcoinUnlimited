@@ -125,16 +125,6 @@ bool CheckSubBlockPoW(const CBlockHeader header, const Consensus::Params &params
     return pow.getdouble() < GetKOSThreshold(bnTarget, k);
 }
 
-// to check wpow use sth like this:
-// if (!CheckProofOfWork(ahashMerkleRoot, weakPOWfromPOW(nBits), Consensus::Params(), true)) { ...
-unsigned int weakPOWfromPOW(unsigned int nBits) {
-    arith_uint256 a;
-    a.SetCompact(nBits);
-    a /= 1000;
-
-    return a.GetCompact();
-}
-
 double GetKOSThreshold(arith_uint256 target, uint8_t k)
 {
     if (k == 0)
