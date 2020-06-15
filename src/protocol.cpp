@@ -72,7 +72,7 @@ const char *CMPCTBLOCK = "cmpctblock";
 const char *GETBLOCKTXN = "getblocktxn";
 const char *BLOCKTXN = "blocktxn";
 const char *DBMISSTX = "dbmisstx";
-const char *DELTABLOCK = "deltablock";
+const char *SUBBLOCK = "subblock";
 };
 
 static const char *ppszTypeName[] = {
@@ -98,7 +98,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::XPEDITEDREQUEST, NetMsgType::XPEDITEDBLK, NetMsgType::XPEDITEDTXN, NetMsgType::BUVERSION,
     NetMsgType::BUVERACK, NetMsgType::XVERSION, NetMsgType::XVERACK, NetMsgType::XUPDATE, NetMsgType::SENDCMPCT,
     NetMsgType::SENDCMPCT, NetMsgType::CMPCTBLOCK, NetMsgType::GETBLOCKTXN, NetMsgType::BLOCKTXN,
-    NetMsgType::GET_GRAPHENE_RECOVERY, NetMsgType::GRAPHENE_RECOVERY,
+    NetMsgType::GET_GRAPHENE_RECOVERY, NetMsgType::GRAPHENE_RECOVERY, NetMsgType::SUBBLOCK,
 
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes,

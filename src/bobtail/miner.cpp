@@ -137,7 +137,7 @@ CTransactionRef SubBlockAssembler::proofbaseTx(const CScript &scriptPubKeyIn, in
 
     tx.vin.resize(1);
     tx.vin[0].prevout.SetNull();
-    tx.vin[0].scriptSig = CScript() << _nHeight << OP_0;
+    tx.vin[0].scriptSig = scriptPubKeyIn;
     // subblocks have their ancestors in ctxins inside the proofbase
     // there must be at a minimum 2 ctxins, if we have no ancestor hashes, the second one is null
     if (ancestor_hashes.empty())
@@ -364,7 +364,6 @@ bool SubBlockAssembler::IsIncrementallyGood(uint64_t nExtraSize, unsigned int nE
         return false;
     }
 
-    uint64_t blockMbSize = 1 + (nBlockSize + nExtraSize - 1) / 1000000;
     if (!may2020Enabled)
     {
         if (nBlockSigOps + nExtraSigOps > GetMaxBlockSigOpsCount(nBlockSize))

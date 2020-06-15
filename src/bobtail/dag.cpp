@@ -251,6 +251,18 @@ CDagNode* CBobtailDagSet::Find(const uint256 &hash)
     return nullptr;
 }
 
+bool CBobtailDagSet::Find(const uint256 &hash, CSubBlock &subblock)
+{
+    RECURSIVEREADLOCK(cs_dagset);
+    std::map<uint256, CDagNode*>::iterator iter = mapAllNodes.find(hash);
+    if (iter != mapAllNodes.end())
+    {
+        subblock = iter->second->subblock;
+        return true;
+    }
+    return false;
+}
+
 bool CBobtailDagSet::Insert(const CSubBlock &sub_block)
 {
     RECURSIVEWRITELOCK(cs_dagset);

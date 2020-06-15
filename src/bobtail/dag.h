@@ -101,7 +101,7 @@ public:
     size_t Size();
 
     CDagNode* Find(const uint256 &hash);
-
+    bool Find(const uint256 &hash, CSubBlock &subblock);
     bool Insert(const CSubBlock &sub_block);
     void TemporalSort();
     bool IsTemporallySorted();

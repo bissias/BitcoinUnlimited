@@ -6,6 +6,8 @@
 #include "bobtailblock.h"
 #include "dag.h"
 
+#include "net.h"
+
 #include <boost/math/distributions/gamma.hpp>
 
 bool IsSubBlockMalformed(const CSubBlock &subblock)
@@ -38,7 +40,15 @@ bool ProcessNewSubBlock(const CSubBlock &subblock)
 {
     if (IsSubBlockMalformed(subblock) == false)
     {
-        return bobtailDagSet.Insert(subblock);
+        if (bobtailDagSet.Insert(subblock))
+        {
+            LOCK(cs_vNodes);
+            for (CNode *pnode : vNodes)
+            {
+                pnode->PushInventory(CInv(MSG_SUBBLOCK, subblock.GetHash()));
+            }
+            return true;
+        }
     }
     return false;
 }
