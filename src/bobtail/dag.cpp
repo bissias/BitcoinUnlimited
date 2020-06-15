@@ -362,8 +362,6 @@ bool CBobtailDagSet::GetBestDag(std::set<CDagNode*> &dag)
     return true;
 }
 
-// TODO : this is more of a placeholder function, we cant grab tips like this because we must
-// check the dags to make sure that they are not conflicting.
 std::vector<uint256> CBobtailDagSet::GetTips()
 {
     RECURSIVEREADLOCK(cs_dagset);
