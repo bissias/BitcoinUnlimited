@@ -8,6 +8,9 @@
 #include "primitives/block.h"
 #include "subblock.h"
 
+class CBobtailBlock;
+typedef std::shared_ptr<CBobtailBlock> CBobtailBlockRef;
+
 class CBobtailBlock : public CBlock
 {
 public:

@@ -7,6 +7,7 @@
 #ifndef BITCOIN_BOBTAIL_MINER_H
 #define BITCOIN_BOBTAIL_MINER_H
 
+#include "bobtail/bobtail.h"
 #include "bobtail/subblock.h"
 #include "miner_common.h"
 
@@ -134,6 +135,84 @@ private:
     uint64_t reserveBlockSize(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
     /** Constructs a coinbase transaction */
     CTransactionRef proofbaseTx(const CScript &scriptPubKeyIn, int nHeight, const std::vector<uint256> &ancestor_hashes);
+
+    // helper functions for addPackageTxs()
+    /** Test whether a package, if added to the block, would make the block exceed the sigops limits */
+    bool TestPackageSigOps(uint64_t packageSize, unsigned int packageSigOps);
+    /** Test if a set of transactions are all final */
+    bool TestPackageFinality(const CTxMemPool::setEntries &package);
+};
+
+struct CBobtailBlockTemplate
+{
+    CBobtailBlockRef bobtailblock;
+    std::vector<CAmount> vTxFees;
+    std::vector<int64_t> vTxSigOps;
+    CBobtailBlockTemplate() : bobtailblock(new CBobtailBlock()) {}
+};
+
+class BobtailBlockAssembler
+{
+private:
+    const CChainParams &chainparams;
+
+    // Configuration parameters for the block size
+    uint64_t nBlockMaxSize, nBlockMinSize;
+
+    // Information on the current status of the block
+    uint64_t nBlockSize;
+    uint64_t nBlockTx;
+    unsigned int nBlockSigOps;
+    CAmount nFees;
+    CTxMemPool::setEntries inBlock;
+
+    // Chain context for the block
+    int nHeight;
+    int64_t nLockTimeCutoff;
+
+    // Variables used for addScoreTxs and addPriorityTxs
+    int lastFewTxs;
+    bool blockFinished;
+
+    bool may2020Enabled = false;
+    uint64_t maxSigOpsAllowed = 0;
+
+public:
+    BobtailBlockAssembler(const CChainParams &chainparams);
+
+    /** Internal method to construct a new block template */
+    std::unique_ptr<CBobtailBlockTemplate> CreateNewBobtailBlock(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
+
+private:
+    // utility functions
+    /** Clear the block's state and prepare for assembling a new block */
+    void resetBlock(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
+    /** Add a tx to the block */
+    void AddToBlock(std::vector<const CTxMemPoolEntry *> *vtxe, CTxMemPool::txiter iter);
+
+    // incomplete, only used for delta blocks
+    void AddToBlock(std::vector<const CTxMemPoolEntry *> *vtxe, CTxMemPoolEntry *entry);
+
+    // Methods for how to add transactions to a block.
+    /** Add transactions based on modified feerate */
+    void addScoreTxs(std::vector<const CTxMemPoolEntry *> *vtxe);
+    /** Add transactions based on tx "priority" */
+    void addPriorityTxs(std::vector<const CTxMemPoolEntry *> *vtxe);
+
+    /** Add transactions based on feerate including unconfirmed ancestors */
+    void addPackageTxs(std::vector<const CTxMemPoolEntry *> *vtxe);
+
+    // helper function for addScoreTxs and addPriorityTxs
+    bool IsIncrementallyGood(uint64_t nExtraSize, unsigned int nExtraSigOps);
+    /** Test if tx will still "fit" in the block */
+    bool TestForBlock(CTxMemPool::txiter iter);
+    /** Test if tx still has unconfirmed parents not yet in block */
+    bool isStillDependent(CTxMemPool::txiter iter);
+
+    /** Bytes to reserve for coinbase and block header */
+    uint64_t reserveBlockSize(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
+    /** Constructs a coinbase transaction */
+    CTransactionRef coinbaseTx(const CScript &scriptPubKeyIn, int nHeight, CAmount nValue);
 
     // helper functions for addPackageTxs()
     /** Test whether a package, if added to the block, would make the block exceed the sigops limits */

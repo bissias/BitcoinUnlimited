@@ -50,6 +50,7 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
 
     int numSubBlocks = 0;
     int numBobBlocks = 0;
+    std::vector<CSubBlockRef> vdag;
 
     while (numSubBlocks < nSubGenerate && numBobBlocks < nBobGenerate)
     {
@@ -99,6 +100,40 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
                 coinbaseScript->KeepScript();
             }
             numSubBlocks++;
+
+            // Add subblock to the dag
+            vdag.push_back(pblocktemplate->subblock);
+
+            // Assemble bobtail block
+            std::unique_ptr<CBobtailBlockTemplate> pBobtailBlockTemplate;
+            {
+                TxAdmissionPause lock; // flush any tx waiting to enter the mempool
+                pBobtailBlockTemplate = BobtailBlockAssembler(Params()).CreateNewBobtailBlock(coinbaseScript->reserveScript);
+            }
+            if (!pBobtailBlockTemplate.get())
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new bobtail block");
+            CBobtailBlock *pBobtailBlock = pBobtailBlockTemplate->bobtailblock.get();
+            pBobtailBlock->vdag = vdag;
+
+            // Check if bobtail block meets strong PoW
+            if (CheckBobtailPoW(*pBobtailBlock, Params().GetConsensus(), BOBTAIL_K))
+            {
+                PV->StopAllValidationThreads(pblock->GetBlockHeader().nBits);
+
+                CValidationState state;
+                if (!ProcessNewBobtailBlock(state, Params(), nullptr, pBobtailBlock, true, nullptr, false))
+                {
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBobtailBlock, subblock not accepted");
+                }
+
+                // mark script as important because it was used at least for one coinbase output if the script came from the
+                // wallet
+                if (keepScript)
+                {
+                    coinbaseScript->KeepScript();
+                }
+                numBobBlocks++;
+            }
         }
         blockHashes.push_back(pblock->GetHash().GetHex());
     }
