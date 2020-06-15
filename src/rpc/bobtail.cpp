@@ -38,9 +38,10 @@
 extern CBobtailDagSet bobtailDagSet;
 
 UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
-    int nSubGenerate,
-    uint64_t nMaxTries,
-    bool keepScript)
+    int nSubGenerate=0,
+    int nBobGenerate=0,
+    uint64_t nMaxTries=0,
+    bool keepScript=false)
 {
     static const int nInnerLoopCount = 0x10000;
 
@@ -48,8 +49,9 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
     UniValue blockHashes(UniValue::VARR);
 
     int numSubBlocks = 0;
+    int numBobBlocks = 0;
 
-    while (numSubBlocks < nSubGenerate)
+    while (numSubBlocks < nSubGenerate && numBobBlocks < nBobGenerate)
     {
         std::unique_ptr<CSubBlockTemplate> pblocktemplate;
         {
@@ -137,7 +139,7 @@ UniValue generatesubblocks(const UniValue &params, bool fHelp)
     if (coinbaseScript->reserveScript.empty())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No coinbase script available (mining requires a wallet)");
 
-    return generateBobtailBlocks(coinbaseScript, nSubGenerate, nMaxTries, true);
+    return generateBobtailBlocks(coinbaseScript, nSubGenerate, 0, nMaxTries, true);
 }
 
 UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
@@ -171,7 +173,7 @@ UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
     boost::shared_ptr<CReserveScript> coinbaseScript(new CReserveScript());
     coinbaseScript->reserveScript = GetScriptForDestination(destination);
 
-    return generateBobtailBlocks(coinbaseScript, nSubGenerate, nMaxTries, false);
+    return generateBobtailBlocks(coinbaseScript, nSubGenerate, 0, nMaxTries, false);
 }
 
 UniValue getdaginfo(const UniValue &params, bool fHelp)
