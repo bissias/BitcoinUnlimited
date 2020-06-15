@@ -48,9 +48,15 @@ class DeltaBlocksTest(BitcoinTestFramework):
         node_count = 0
         for i in range(30):
             new_block = self.nodes[0].generatebobtail(1)
+            # TODO : fix this wait,
+            # sync_blocks does not handle subblocks yet, so manually wait here for now
+            time.sleep(1)
             assert_equal(new_block, self.nodes[0].getdagtips())
             node_count = node_count + 1
             assert_equal(self.nodes[0].getdaginfo()["size"], node_count)
+            # compare node 0 and node 1 to check for proper relay
+            assert_equal(self.nodes[0].getdaginfo()["size"], self.nodes[1].getdaginfo()["size"])
+            assert_equal(self.nodes[0].getdagtips(), self.nodes[1].getdagtips())
 
         self.sync_blocks()
 
