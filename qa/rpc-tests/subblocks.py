@@ -48,7 +48,7 @@ class DeltaBlocksTest(BitcoinTestFramework):
         node_count = 0
         miner_node = 0
         for i in range(30):
-            new_block = self.nodes[miner_node].generatebobtail(1)
+            new_block = self.nodes[miner_node].generatesubblocks(1)
             # TODO : fix this wait,
             # sync_blocks does not handle subblocks yet, so manually wait here for now
             time.sleep(1)
