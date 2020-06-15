@@ -38,7 +38,7 @@
 extern CBobtailDagSet bobtailDagSet;
 
 UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
-    int nGenerate,
+    int nSubGenerate,
     uint64_t nMaxTries,
     bool keepScript)
 {
@@ -47,9 +47,9 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
     unsigned int nExtraNonce = 0;
     UniValue blockHashes(UniValue::VARR);
 
-    int numblocks = 0;
+    int numSubBlocks = 0;
 
-    while (numblocks < nGenerate)
+    while (numSubBlocks < nSubGenerate)
     {
         std::unique_ptr<CSubBlockTemplate> pblocktemplate;
         {
@@ -96,7 +96,7 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
             {
                 coinbaseScript->KeepScript();
             }
-            numblocks++;
+            numSubBlocks++;
         }
         blockHashes.push_back(pblock->GetHash().GetHex());
     }
@@ -108,18 +108,18 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
 UniValue generatesubblocks(const UniValue &params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 3)
-        throw std::runtime_error("generate numblocks ( maxtries )\n"
-                            "\nMine up to numblocks bobtailblocks immediately (before the RPC call returns)\n"
+        throw std::runtime_error("generate numSubBlocks ( maxtries )\n"
+                            "\nMine up to numSubBlocks subBlocks immediately (before the RPC call returns)\n"
                             "\nArguments:\n"
-                            "1. numblocks    (numeric, required) How many blocks are generated immediately.\n"
+                            "1. numSubBlocks    (numeric, required) How many subBlocks are generated immediately.\n"
                             "2. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
                             "\nResult\n"
                             "[ blockhashes ]     (array) hashes of blocks generated\n"
                             "\nExamples:\n"
-                            "\nGenerate 11 bobtailblocks\n" +
+                            "\nGenerate 11 subBlocks\n" +
                             HelpExampleCli("generate", "11"));
 
-    int nGenerate = params[0].get_int();
+    int nSubGenerate = params[0].get_int();
     uint64_t nMaxTries = 100000000;
     if (params.size() > 1)
     {
@@ -137,16 +137,16 @@ UniValue generatesubblocks(const UniValue &params, bool fHelp)
     if (coinbaseScript->reserveScript.empty())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No coinbase script available (mining requires a wallet)");
 
-    return generateBobtailBlocks(coinbaseScript, nGenerate, nMaxTries, true);
+    return generateBobtailBlocks(coinbaseScript, nSubGenerate, nMaxTries, true);
 }
 
 UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
-        throw std::runtime_error("generatetoaddress numblocks address (maxtries)\n"
+        throw std::runtime_error("generatetoaddress numSubBlocks address (maxtries)\n"
                             "\nMine bobtailblocks immediately to a specified address (before the RPC call returns)\n"
                             "\nArguments:\n"
-                            "1. numblocks    (numeric, required) How many blocks are generated immediately.\n"
+                            "1. numSubBlocks    (numeric, required) How many subBlocks are generated immediately.\n"
                             "2. address    (string, required) The address to send the newly generated bitcoin to.\n"
                             "3. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
                             "\nResult\n"
@@ -155,7 +155,7 @@ UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
                             "\nGenerate 11 bobtailblocks to myaddress\n" +
                             HelpExampleCli("generatetoaddress", "11 \"myaddress\""));
 
-    int nGenerate = params[0].get_int();
+    int nSubGenerate = params[0].get_int();
     uint64_t nMaxTries = 100000000;
     if (params.size() > 2)
     {
@@ -171,7 +171,7 @@ UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
     boost::shared_ptr<CReserveScript> coinbaseScript(new CReserveScript());
     coinbaseScript->reserveScript = GetScriptForDestination(destination);
 
-    return generateBobtailBlocks(coinbaseScript, nGenerate, nMaxTries, false);
+    return generateBobtailBlocks(coinbaseScript, nSubGenerate, nMaxTries, false);
 }
 
 UniValue getdaginfo(const UniValue &params, bool fHelp)
