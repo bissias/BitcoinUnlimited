@@ -52,7 +52,7 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
     int numBobBlocks = 0;
     std::vector<CSubBlockRef> vdag;
 
-    while (numSubBlocks < nSubGenerate && numBobBlocks < nBobGenerate)
+    while (numSubBlocks < nSubGenerate || numBobBlocks < nBobGenerate)
     {
         std::unique_ptr<CSubBlockTemplate> pblocktemplate;
         {
@@ -118,12 +118,12 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
             // Check if bobtail block meets strong PoW
             if (CheckBobtailPoW(*pBobtailBlock, Params().GetConsensus(), BOBTAIL_K))
             {
-                PV->StopAllValidationThreads(pblock->GetBlockHeader().nBits);
+                PV->StopAllValidationThreads(pBobtailBlock->GetBlockHeader().nBits);
 
                 CValidationState state;
                 if (!ProcessNewBobtailBlock(state, Params(), nullptr, pBobtailBlock, true, nullptr, false))
                 {
-                    throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBobtailBlock, subblock not accepted");
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBobtailBlock, bobtail block not accepted");
                 }
 
                 // mark script as important because it was used at least for one coinbase output if the script came from the
@@ -133,9 +133,13 @@ UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
                     coinbaseScript->KeepScript();
                 }
                 numBobBlocks++;
+
+                if (nBobGenerate > 0)
+                    blockHashes.push_back(pBobtailBlock->GetHash().GetHex());
             }
         }
-        blockHashes.push_back(pblock->GetHash().GetHex());
+        if (nSubGenerate > 0)
+            blockHashes.push_back(pblock->GetHash().GetHex());
     }
     // we dont need to flush to disk because no blocks that can be written to disk were made
     // we dont update tip because no cblocks were mined, only csubblocks
@@ -177,11 +181,46 @@ UniValue generatesubblocks(const UniValue &params, bool fHelp)
     return generateBobtailBlocks(coinbaseScript, nSubGenerate, 0, nMaxTries, true);
 }
 
+UniValue generatebobtailblocks(const UniValue &params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw std::runtime_error("generate numBobtailBlocks ( maxtries )\n"
+                            "\nMine up to numBobtailBlocks bobtailBlocks immediately (before the RPC call returns)\n"
+                            "\nArguments:\n"
+                            "1. numBobtailBlocks    (numeric, required) How many bobtailBlocks are generated immediately.\n"
+                            "2. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
+                            "\nResult\n"
+                            "[ blockhashes ]     (array) hashes of blocks generated\n"
+                            "\nExamples:\n"
+                            "\nGenerate 11 bobtailBlocks\n" +
+                            HelpExampleCli("generate", "11"));
+
+    int nBobGenerate = params[0].get_int();
+    uint64_t nMaxTries = 100000000;
+    if (params.size() > 1)
+    {
+        nMaxTries = params[1].get_int();
+    }
+
+    boost::shared_ptr<CReserveScript> coinbaseScript;
+    GetMainSignals().ScriptForMining(coinbaseScript);
+
+    // If the keypool is exhausted, no script is returned at all.  Catch this.
+    if (!coinbaseScript)
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+
+    // throw an error if no script was provided
+    if (coinbaseScript->reserveScript.empty())
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "No coinbase script available (mining requires a wallet)");
+
+    return generateBobtailBlocks(coinbaseScript, 0, nBobGenerate, nMaxTries, true);
+}
+
 UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
 {
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw std::runtime_error("generatetoaddress numSubBlocks address (maxtries)\n"
-                            "\nMine bobtailblocks immediately to a specified address (before the RPC call returns)\n"
+                            "\nMine sub blocks immediately to a specified address (before the RPC call returns)\n"
                             "\nArguments:\n"
                             "1. numSubBlocks    (numeric, required) How many subBlocks are generated immediately.\n"
                             "2. address    (string, required) The address to send the newly generated bitcoin to.\n"
@@ -210,6 +249,41 @@ UniValue generatesubblockstoaddress(const UniValue &params, bool fHelp)
 
     return generateBobtailBlocks(coinbaseScript, nSubGenerate, 0, nMaxTries, false);
 }
+
+UniValue generatebobtailblockstoaddress(const UniValue &params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 3)
+        throw std::runtime_error("generatetoaddress numBobtailBlocks address (maxtries)\n"
+                            "\nMine bobtail blocks immediately to a specified address (before the RPC call returns)\n"
+                            "\nArguments:\n"
+                            "1. numBobtailBlocks    (numeric, required) How many subBlocks are generated immediately.\n"
+                            "2. address    (string, required) The address to send the newly generated bitcoin to.\n"
+                            "3. maxtries     (numeric, optional) How many iterations to try (default = 1000000).\n"
+                            "\nResult\n"
+                            "[ blockhashes ]     (array) hashes of blocks generated\n"
+                            "\nExamples:\n"
+                            "\nGenerate 11 bobtailblocks to myaddress\n" +
+                            HelpExampleCli("generatetoaddress", "11 \"myaddress\""));
+
+    int nBobGenerate = params[0].get_int();
+    uint64_t nMaxTries = 100000000;
+    if (params.size() > 2)
+    {
+        nMaxTries = params[2].get_int();
+    }
+
+    CTxDestination destination = DecodeDestination(params[1].get_str());
+    if (!IsValidDestination(destination))
+    {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
+    }
+
+    boost::shared_ptr<CReserveScript> coinbaseScript(new CReserveScript());
+    coinbaseScript->reserveScript = GetScriptForDestination(destination);
+
+    return generateBobtailBlocks(coinbaseScript, 0, nBobGenerate, nMaxTries, false);
+}
+
 
 UniValue getdaginfo(const UniValue &params, bool fHelp)
 {
@@ -256,11 +330,33 @@ UniValue getdagtips(const UniValue &params, bool fHelp)
     return obj;
 }
 
+UniValue getbobtailinfo(const UniValue &params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+    {
+        throw std::runtime_error(
+            "getbobtailinfo\n"
+            "Returns an object containing info about the current bobtail blocks.\n"
+            "\nResult:\n"
+            "{\n"
+                "chaintip: hash     (array) hash of bobtail block at tip of current chain\n"
+            "}\n"
+            "\nExamples:\n" +
+            HelpExampleCli("getbobtailinfo", "") + HelpExampleRpc("getbobtailinfo", ""));
+    }
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("chaintip", chainActive.Tip()->phashBlock->GetHex());
+    return obj;
+}
+
+
 static const CRPCCommand commands[] = {
     //  category              name                      actor (function)         okSafeMode
     //  --------------------- ------------------------  -----------------------  ----------
-    {"generating", "generatesubblocks", &generatesubblocks, true}, {"generating", "generatesubblockstoaddress", &generatesubblockstoaddress, true},
-    {"bobtail", "getdaginfo", &getdaginfo, true}, {"bobtail", "getdagtips", &getdagtips, true},
+    {"generating", "generatesubblocks", &generatesubblocks, true}, {"generating", "generatebobtailblocks", &generatebobtailblocks, true}, 
+    {"generating", "generatesubblockstoaddress", &generatesubblockstoaddress, true}, {"generating", "generatesubblockstoaddress", &generatesubblockstoaddress, true},
+    {"bobtail", "getdaginfo", &getdaginfo, true}, {"bobtail", "getdagtips", &getdagtips, true}, {"bobtail", "getbobtailinfo", &getbobtailinfo, true}
 };
 
 void RegisterBobtailRPCCommands(CRPCTable &table)
