@@ -185,7 +185,6 @@ void CBobtailDagSet::CreateNewDag(CDagNode *newNode)
     int16_t new_id = vdags.size();
     newNode->dag_id = new_id;
     vdags.emplace_back(new_id, newNode);
-    mapAllNodes.emplace(newNode->hash, newNode);
     for (auto &dag : vdags)
     {
         dag.CheckForCompatibility(newNode);
@@ -240,51 +239,50 @@ size_t CBobtailDagSet::Size()
     return mapAllNodes.size();
 }
 
-CDagNode* CBobtailDagSet::Find(const uint256 &hash)
-{
-    RECURSIVEREADLOCK(cs_dagset);
-    std::map<uint256, CDagNode*>::iterator iter = mapAllNodes.find(hash);
-    if (iter != mapAllNodes.end())
-    {
-        return iter->second;
-    }
-    return nullptr;
-}
-
 bool CBobtailDagSet::Find(const uint256 &hash, CSubBlock &subblock)
 {
     RECURSIVEREADLOCK(cs_dagset);
-    std::map<uint256, CDagNode*>::iterator iter = mapAllNodes.find(hash);
+    std::map<uint256, CDagNode>::iterator iter = mapAllNodes.find(hash);
     if (iter != mapAllNodes.end())
     {
-        subblock = iter->second->subblock;
+        subblock = iter->second.subblock;
         return true;
     }
     return false;
+}
+
+bool CBobtailDagSet::Contains(const uint256 &hash)
+{
+    return (mapAllNodes.count(hash) != 0);
 }
 
 bool CBobtailDagSet::Insert(const CSubBlock &sub_block)
 {
     RECURSIVEWRITELOCK(cs_dagset);
     uint256 sub_block_hash = sub_block.GetHash();
-    CDagNode* temp = Find(sub_block_hash);
-    if (temp != nullptr)
+    if (mapAllNodes.count(sub_block_hash) != 0)
     {
-        // we have this node.
+        // we already have this subblock in the dag
         return false;
     }
 
     // Create newz
-    CDagNode *newNode = new CDagNode(sub_block);
+    CDagNode _newNode(sub_block);
+    // this emplace will always succeed since we already checked for the hash above
+    auto result = mapAllNodes.emplace(_newNode.hash, _newNode);
+    CDagNode *newNode = &result.first->second;
+
     std::set<int16_t> merge_list;
     for (auto &hash : sub_block.GetAncestorHashes())
     {
-        CDagNode* ancestor = Find(hash);
-        if (ancestor == nullptr)
+        std::map<uint256, CDagNode>::iterator ancestor_iter = mapAllNodes.find(hash);
+        if (ancestor_iter == mapAllNodes.end())
         {
             // TODO : A subblock is missing, try to re-request it or something
             continue;
         }
+        // use a pointer to the node already inserted in mapAllNodes to avoid obj duplication
+        CDagNode* ancestor = &(ancestor_iter->second);
         newNode->AddAncestor(ancestor);
         merge_list.emplace(ancestor->dag_id);
         ancestor->AddDescendant(newNode);
@@ -312,8 +310,6 @@ bool CBobtailDagSet::Insert(const CSubBlock &sub_block)
         return false;
     }
     vdags[new_id].Insert(newNode);
-    // TODO : should insert to maintain temporal ordering not just emplace_back
-    mapAllNodes.emplace(newNode->hash, newNode);
     // run compat checks for the newNode, skip the dag it belongs to,
     // we already checked this one
     for (auto &dag : vdags)
