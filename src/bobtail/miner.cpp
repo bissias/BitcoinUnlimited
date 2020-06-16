@@ -919,6 +919,7 @@ std::unique_ptr<CBobtailBlockTemplate> BobtailBlockAssembler::CreateNewBobtailBl
             pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0], STANDARD_SCRIPT_VERIFY_FLAGS);
         else // coinbase May2020 Sigchecks is always 0 since no scripts executed in coinbase tx.
             pblocktemplate->vTxSigOps[0] = 0;
+        pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
     }
 
     // All the transactions in this block are from the mempool and therefore we can use XVal to speed
