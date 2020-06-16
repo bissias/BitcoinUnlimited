@@ -81,7 +81,7 @@ protected:
     CRecursiveSharedCriticalSection cs_dagset;
 
     std::vector<CBobtailDag> vdags;
-    std::map<uint256, CDagNode*> mapAllNodes;
+    std::map<uint256, CDagNode> mapAllNodes;
 
 private:
     void SetNewIds(std::priority_queue<int16_t> &removed_ids);
@@ -100,8 +100,8 @@ public:
 
     size_t Size();
 
-    CDagNode* Find(const uint256 &hash);
     bool Find(const uint256 &hash, CSubBlock &subblock);
+    bool Contains(const uint256 &hash);
     bool Insert(const CSubBlock &sub_block);
     void TemporalSort();
     bool IsTemporallySorted();

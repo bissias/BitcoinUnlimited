@@ -1012,8 +1012,9 @@ bool ProcessMessage(CNode *pfrom, std::string strCommand, CDataStream &vRecv, in
 
             if (inv.type == MSG_SUBBLOCK)
             {
-                if (bobtailDagSet.Find(inv.hash) == nullptr)
+                if (bobtailDagSet.Contains(inv.hash) == false)
                 {
+                    // we dont have it so request it
                     requester.AskFor(inv, pfrom);
                 }
             }
