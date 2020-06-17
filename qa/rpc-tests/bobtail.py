@@ -8,7 +8,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
 
-class DeltaBlocksTest(BitcoinTestFramework):
+class BobtailBlocksTest(BitcoinTestFramework):
     def __init__(self):
         self.rep = False
         BitcoinTestFramework.__init__(self)
@@ -36,21 +36,26 @@ class DeltaBlocksTest(BitcoinTestFramework):
         self.sync_all()
 
     def run_test(self):
-        # Generate blocks so we can send a few transactions.  We need some transactions in a block
-        # before a graphene block can be sent and created, otherwise we'll just end up sending a regular
-        # block.
-        for i in range(21):
-            self.nodes[0].generate(5)
-            self.sync_blocks()
+        # Generate some blocks
+        self.nodes[0].generate(105)
+        self.sync_blocks()
 
         logging.info("Send 5 transactions from node0 (to its own address)")
         addr = self.nodes[0].getnewaddress()
         for i in range(5):
-            self.nodes[0].sendtoaddress(addr, Decimal("1"))
+            self.nodes[0].sendtoaddress(addr, Decimal("10"))
 
-        self.nodes[0].generate(1)
+        node_count = 0
+        miner_node = 0
+        for i in range(30):
+            new_block = self.nodes[miner_node].generatebobtailblocks(1)
+            # TODO : fix this wait,
+            # sync_blocks does not handle bobtail blocks yet, so manually wait here for now
+            time.sleep(1)
+            assert_equal(new_block[0], self.nodes[miner_node].getbobtailinfo()['chaintip'])
+            node_count = node_count + 1
 
-        self.sync_blocks()
+            #TODO: get bobtail block propagation working and add test here
 
 if __name__ == '__main__':
-    DeltaBlocksTest().main()
+    BobtailBlocksTest().main()
