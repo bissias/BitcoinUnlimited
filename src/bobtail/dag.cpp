@@ -102,7 +102,7 @@ void CBobtailDag::UpdateDagScore()
         if (node->IsBase())
         {
             leveled_dag[0].emplace(node);
-            mapNodeScore.emplace(node, 0);
+            mapNodeScore.emplace(node, 1);
             if (node->descendants.empty() == false)
             {
                 do_another_level = true;
@@ -121,7 +121,7 @@ void CBobtailDag::UpdateDagScore()
             {
                 if (mapNodeScore.count(desc) == 0)
                 {
-                    mapNodeScore.emplace(desc, 0);
+                    mapNodeScore.emplace(desc, 1);
                     leveled_dag.back().emplace(desc);
                     if (desc->IsTip() == false)
                     {
@@ -133,18 +133,6 @@ void CBobtailDag::UpdateDagScore()
     }
     // calculate the score
     uint16_t total_score = 0;
-    // set all of the tips to a score of 1
-    for (auto &node : leveled_dag.back())
-    {
-        // we might be able to just use .at() here but if it doesnt exist for
-        // some reason an exception is thrown, this is safer
-        auto iter = mapNodeScore.find(node);
-        if (iter != mapNodeScore.end())
-        {
-            iter->second = 1;
-            total_score = total_score + 1;
-        }
-    }
     std::vector<std::set<CDagNode*> >::reverse_iterator riter = leveled_dag.rbegin();
     ++riter;
     size_t depth = 1;
