@@ -36,6 +36,7 @@
 #include <boost/shared_ptr.hpp>
 
 extern CBobtailDagSet bobtailDagSet;
+extern std::set<CBobtailBlock> bobtailBlocks;
 
 UniValue generateBobtailBlocks(boost::shared_ptr<CReserveScript> coinbaseScript,
     int nSubGenerate=0,

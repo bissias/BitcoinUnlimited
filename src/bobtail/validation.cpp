@@ -30,6 +30,8 @@
 #include <boost/scope_exit.hpp>
 #include <unordered_set>
 
+extern CCriticalSection cs_bobtailblocks;
+extern std::map<uint256, CBobtailBlock> bobtailBlocks GUARDED_BY(cs_bobtailblocks);
 extern CBobtailDagSet bobtailDagSet;
 extern bool fCheckForPruning;
 extern std::map<uint256, NodeId> mapBlockSource;
@@ -782,7 +784,7 @@ bool ProcessNewBobtailBlock(CValidationState &state,
 
         // Store to disk
         CBlockIndex *pindex = nullptr;
-        bool ret = AcceptBlock(*pblock, state, chainparams, &pindex, fRequested, dbp);
+        AcceptBlock(*pblock, state, chainparams, &pindex, fRequested, dbp);
         if (pindex && pfrom)
         {
             const uint256 blockhash = pindex->GetBlockHash();
@@ -790,23 +792,20 @@ bool ProcessNewBobtailBlock(CValidationState &state,
         }
         CheckBlockIndex(chainparams.GetConsensus());
 
-        CInv inv(MSG_BLOCK, hash);
-        if (!ret)
         {
-            // BU TODO: if block comes out of order (before its parent) this will happen.  We should cache the block
-            // until the parents arrive.
-
-            // If the block was not accepted then reset the fProcessing flag to false.
-            requester.BlockRejected(inv, pfrom);
-
-            return error("%s: AcceptBlock FAILED", __func__);
+            LOCK(cs_bobtailblocks);
+            bobtailBlocks[pblock->GetHash()] = *pblock;
         }
-        else
+
         {
-            // We must indicate to the request manager that the block was received only after it has
-            // been stored to disk (or been shown to be invalid). Doing so prevents unnecessary re-requests.
-            requester.Received(inv, pfrom);
+            LOCK(cs_vNodes);
+            for (CNode *pnode : vNodes)
+            {
+                pnode->PushInventory(CInv(MSG_BOBTAILBLOCK, pblock->GetHash()));
+            }
+            return true;
         }
+
     }
     /*! FIXME: There is somewhat of a race here during regtesting: If
       a lot of blocks are generated in one RPC call, parallel

@@ -366,6 +366,12 @@ extern const char *BLOCKTXN;
  * Sent to peers to inform them about new sub blocks
  */
 extern const char *SUBBLOCK;
+
+/**
+ * Contains a CBobtailBlock
+ * Sent to peers to inform them about new bobtail blocks
+ */
+extern const char *BOBTAILBLOCK;
 };
 
 
@@ -517,6 +523,7 @@ enum
     MSG_MEMPOOLSYNC,
     //
     MSG_SUBBLOCK,
+    MSG_BOBTAILBLOCK,
 };
 
 #endif // BITCOIN_PROTOCOL_H

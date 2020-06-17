@@ -90,7 +90,7 @@ static CBlockIndex *LastCommonAncestor(CBlockIndex *pa, CBlockIndex *pb)
 static bool IsBlockType(const CInv &obj)
 {
     return ((obj.type == MSG_BLOCK) || (obj.type == MSG_CMPCT_BLOCK) || (obj.type == MSG_XTHINBLOCK) ||
-            (obj.type == MSG_GRAPHENEBLOCK) || (obj.type == MSG_SUBBLOCK));
+            (obj.type == MSG_GRAPHENEBLOCK) || (obj.type == MSG_SUBBLOCK) || (obj.type == MSG_BOBTAILBLOCK));
 }
 
 // Constructor for CRequestManagerNodeState struct
@@ -560,6 +560,15 @@ bool CRequestManager::RequestBlock(CNode *pfrom, CInv obj)
     {
         std::vector<CInv> vGetData;
         inv2.type = MSG_SUBBLOCK;
+        vGetData.push_back(inv2);
+        pfrom->PushMessage(NetMsgType::GETDATA, vGetData);
+        return true;
+    }
+
+    if (IsChainNearlySyncd() && inv2.type == MSG_BOBTAILBLOCK)
+    {
+        std::vector<CInv> vGetData;
+        inv2.type = MSG_BOBTAILBLOCK;
         vGetData.push_back(inv2);
         pfrom->PushMessage(NetMsgType::GETDATA, vGetData);
         return true;
