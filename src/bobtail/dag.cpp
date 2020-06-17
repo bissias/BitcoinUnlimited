@@ -123,7 +123,7 @@ void CBobtailDag::UpdateDagScore()
                 {
                     mapNodeScore.emplace(desc, 0);
                     leveled_dag.back().emplace(desc);
-                    if (desc->IsBase())
+                    if (desc->IsTip() == false)
                     {
                         do_another_level = true;
                     }
