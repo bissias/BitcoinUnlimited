@@ -88,8 +88,8 @@ void CBobtailDag::UpdateCompatibility(const int16_t &new_id, const std::set<int1
 
 void CBobtailDag::UpdateDagScore()
 {
-    // keep track of what has been seen
-    std::map<CDagNode*, uint64_t> seen;
+    // keep track of what has been mapNodeScore
+    std::map<CDagNode*, uint64_t> mapNodeScore;
     // build out the dag by level, a nodes level is determined by
     // its shortest path to a base
     std::vector<std::set<CDagNode*> > leveled_dag;
@@ -102,7 +102,7 @@ void CBobtailDag::UpdateDagScore()
         if (node->IsBase())
         {
             leveled_dag[0].emplace(node);
-            seen.emplace(node, 0);
+            mapNodeScore.emplace(node, 0);
             if (node->descendants.empty() == false)
             {
                 do_another_level = true;
@@ -119,9 +119,9 @@ void CBobtailDag::UpdateDagScore()
         {
             for (auto &desc : node->descendants)
             {
-                if (seen.count(desc) == 0)
+                if (mapNodeScore.count(desc) == 0)
                 {
-                    seen.emplace(desc, 0);
+                    mapNodeScore.emplace(desc, 0);
                     leveled_dag.back().emplace(desc);
                     if (desc->IsBase())
                     {
@@ -138,8 +138,8 @@ void CBobtailDag::UpdateDagScore()
     {
         // we might be able to just use .at() here but if it doesnt exist for
         // some reason an exception is thrown, this is safer
-        auto iter = seen.find(node);
-        if (iter != seen.end())
+        auto iter = mapNodeScore.find(node);
+        if (iter != mapNodeScore.end())
         {
             iter->second = 1;
             total_score = total_score + 1;
@@ -156,8 +156,8 @@ void CBobtailDag::UpdateDagScore()
             uint64_t node_score = 1;
             for (auto &desc : node->descendants)
             {
-                auto iter = seen.find(desc);
-                if (iter != seen.end())
+                auto iter = mapNodeScore.find(desc);
+                if (iter != mapNodeScore.end())
                 {
                     node_score = node_score + (iter->second * depth);
                 }
