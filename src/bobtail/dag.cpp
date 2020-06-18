@@ -28,37 +28,6 @@ bool CDagNode::IsTip()
     return descendants.empty();
 }
 
-uint16_t CDagNode::GetNodeScore()
-{
-    uint16_t score = 0;
-    std::vector<uint16_t> num_desc_gen;
-    std::set<CDagNode*> children;
-    std::set<CDagNode*> next_children;
-    if (this->IsTip())
-    {
-        return 0;
-    }
-    children.insert(this->descendants.begin(), this->descendants.end());
-    num_desc_gen.push_back(children.size());
-    while(children.empty() == false)
-    {
-        for (auto &child : children)
-        {
-            // TODO : this means some nodes will be counted twice if they use two ancestors from different levels
-            // unsure how we should handle this scenario
-            next_children.insert(child->descendants.begin(), child->descendants.end());
-        }
-        num_desc_gen.push_back(next_children.size());
-        children.clear();
-        std::swap(children, next_children);
-    }
-    for (uint16_t i = 0; i < num_desc_gen.size(); ++i)
-    {
-        score = (score + (num_desc_gen[i] * (i + 1)));
-    }
-    return score;
-}
-
 bool CDagNode::IsValid()
 {
     return (subblock.IsNull() == false && dag_id >= 0);
@@ -115,6 +84,82 @@ void CBobtailDag::UpdateCompatibility(const int16_t &new_id, const std::set<int1
             incompatible_dags.erase(old_id);
         }
     }
+}
+
+void CBobtailDag::UpdateDagScore()
+{
+    // keep track of what has been mapNodeScore
+    std::map<CDagNode*, uint64_t> mapNodeScore;
+    // build out the dag by level, a nodes level is determined by
+    // its shortest path to a base
+    std::vector<std::set<CDagNode*> > leveled_dag;
+    // first find the bases
+    leveled_dag.emplace_back();
+    bool do_another_level = false;
+    // there is always at least 1 node in a dag
+    for (auto &node : _dag)
+    {
+        if (node->IsBase())
+        {
+            leveled_dag[0].emplace(node);
+            mapNodeScore.emplace(node, 1);
+            if (node->descendants.empty() == false)
+            {
+                do_another_level = true;
+            }
+        }
+    }
+    while (do_another_level == true)
+    {
+        size_t search_index = leveled_dag.size() - 1;
+        // add another level
+        leveled_dag.emplace_back();
+        do_another_level = false;
+        for (auto &node : leveled_dag[search_index])
+        {
+            for (auto &desc : node->descendants)
+            {
+                if (mapNodeScore.count(desc) == 0)
+                {
+                    mapNodeScore.emplace(desc, 1);
+                    leveled_dag.back().emplace(desc);
+                    if (desc->IsTip() == false)
+                    {
+                        do_another_level = true;
+                    }
+                }
+            }
+        }
+    }
+    // calculate the score
+    uint16_t total_score = 0;
+    std::vector<std::set<CDagNode*> >::reverse_iterator riter = leveled_dag.rbegin();
+    ++riter;
+    size_t depth = 1;
+    while (riter != leveled_dag.rend())
+    {
+        ++depth;
+        for (auto &node : *riter)
+        {
+            uint64_t node_score = 1;
+            for (auto &desc : node->descendants)
+            {
+                auto iter = mapNodeScore.find(desc);
+                if (iter != mapNodeScore.end())
+                {
+                    node_score = node_score + (iter->second * depth);
+                }
+            }
+            total_score = total_score + node_score;
+            auto this_node = mapNodeScore.find(node);
+            if (iter != mapNodeScore.end())
+            {
+                iter->second = node_score;
+            }
+        }
+        ++riter;
+    }
+    score = total_score;
 }
 
 bool CBobtailDag::Insert(CDagNode* new_node)

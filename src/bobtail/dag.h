@@ -39,7 +39,6 @@ public:
     void AddDescendant(CDagNode* descendant);
     bool IsBase();
     bool IsTip();
-    uint16_t GetNodeScore();
     bool IsValid();
 };
 
@@ -64,6 +63,7 @@ protected:
     void SetId(int16_t new_id);
     bool CheckForCompatibility(CDagNode* newNode);
     void UpdateCompatibility(const int16_t &new_id, const std::set<int16_t> &old_ids);
+    void UpdateDagScore();
 
 public:
     CBobtailDag(uint16_t _id, CDagNode* first_node)
