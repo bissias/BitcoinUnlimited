@@ -803,7 +803,6 @@ bool ProcessNewBobtailBlock(CValidationState &state,
             {
                 pnode->PushInventory(CInv(MSG_BOBTAILBLOCK, pblock->GetHash()));
             }
-            return true;
         }
 
     }
