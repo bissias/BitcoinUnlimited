@@ -784,7 +784,7 @@ bool ProcessNewBobtailBlock(CValidationState &state,
 
         // Store to disk
         CBlockIndex *pindex = nullptr;
-        AcceptBlock(*pblock, state, chainparams, &pindex, fRequested, dbp);
+        bool ret = AcceptBlock(*pblock, state, chainparams, &pindex, fRequested, dbp);
         if (pindex && pfrom)
         {
             const uint256 blockhash = pindex->GetBlockHash();
@@ -792,19 +792,32 @@ bool ProcessNewBobtailBlock(CValidationState &state,
         }
         CheckBlockIndex(chainparams.GetConsensus());
 
+        CInv inv(MSG_BOBTAILBLOCK, hash);
+        if (!ret)
         {
-            LOCK(cs_bobtailblocks);
-            bobtailBlocks[pblock->GetHash()] = *pblock;
-        }
+            // BU TODO: if block comes out of order (before its parent) this will happen.  We should cache the block
+            // until the parents arrive.
 
-        {
-            LOCK(cs_vNodes);
-            for (CNode *pnode : vNodes)
-            {
-                pnode->PushInventory(CInv(MSG_BOBTAILBLOCK, pblock->GetHash()));
-            }
-        }
+            // If the block was not accepted then reset the fProcessing flag to false.
+            requester.BlockRejected(inv, pfrom);
 
+            return error("%s: AcceptBlock FAILED", __func__);
+		}
+		else
+		{
+			{
+				LOCK(cs_bobtailblocks);
+				bobtailBlocks[pblock->GetHash()] = *pblock;
+			}
+
+			{
+				LOCK(cs_vNodes);
+				for (CNode *pnode : vNodes)
+				{
+					pnode->PushInventory(CInv(MSG_BOBTAILBLOCK, pblock->GetHash()));
+				}
+			}
+		}
     }
     /*! FIXME: There is somewhat of a race here during regtesting: If
       a lot of blocks are generated in one RPC call, parallel
