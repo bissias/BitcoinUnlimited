@@ -14,6 +14,7 @@
 #include "blockrelay/netdeltablocks.h"
 #include "blockrelay/thinblock.h"
 #include "blockstorage/blockstorage.h"
+#include "bobtail/bobtailblock.h"
 #include "bobtail/dag.h"
 #include "chain.h"
 #include "dosman.h"
@@ -31,6 +32,8 @@
 #include "xversionkeys.h"
 
 
+extern CCriticalSection cs_bobtailblocks;
+extern std::map<uint256, CBobtailBlock> bobtailBlocks GUARDED_BY(cs_bobtailblocks);
 extern std::atomic<int64_t> nTimeBestReceived;
 extern std::atomic<int> nPreferredDownload;
 extern int nSyncStarted;
@@ -117,7 +120,23 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
             {
                 pfrom->PushMessage(NetMsgType::SUBBLOCK, subblock);
             }
-            vNotFound.push_back(inv);
+            else
+            {
+                vNotFound.push_back(inv);
+            }
+        }
+        else if (inv.type == MSG_BOBTAILBLOCK)
+        {
+            LOCK(cs_bobtailblocks);
+
+            if (bobtailBlocks.count(inv.hash) > 0)
+            {
+                pfrom->PushMessage(NetMsgType::BOBTAILBLOCK, bobtailBlocks[inv.hash]);
+            }
+            else
+            {
+                vNotFound.push_back(inv);
+            }
         }
         else if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK)
         {
@@ -999,7 +1018,7 @@ bool ProcessMessage(CNode *pfrom, std::string strCommand, CDataStream &vRecv, in
                 return false;
 
             const CInv &inv = vInv[nInv];
-            if (!((inv.type == MSG_TX) || (inv.type == MSG_BLOCK) || (inv.type == MSG_SUBBLOCK)))
+            if (!((inv.type == MSG_TX) || (inv.type == MSG_BLOCK) || (inv.type == MSG_SUBBLOCK) || (inv.type == MSG_SUBBLOCK)))
             {
                 LOG(NET, "message inv invalid type = %u hash %s", inv.type, inv.hash.ToString());
                 return false;
@@ -1013,6 +1032,16 @@ bool ProcessMessage(CNode *pfrom, std::string strCommand, CDataStream &vRecv, in
             if (inv.type == MSG_SUBBLOCK)
             {
                 if (bobtailDagSet.Contains(inv.hash) == false)
+                {
+                    // we dont have it so request it
+                    requester.AskFor(inv, pfrom);
+                }
+            }
+            else if (inv.type == MSG_BOBTAILBLOCK)
+            {
+                LOCK(cs_bobtailblocks);
+
+                if (bobtailBlocks.count(inv.hash) == 0)
                 {
                     // we dont have it so request it
                     requester.AskFor(inv, pfrom);
@@ -1104,7 +1133,7 @@ bool ProcessMessage(CNode *pfrom, std::string strCommand, CDataStream &vRecv, in
         {
             const CInv &inv = vInv[nInv];
             if (!((inv.type == MSG_TX) || (inv.type == MSG_BLOCK) || (inv.type == MSG_FILTERED_BLOCK) ||
-                    (inv.type == MSG_CMPCT_BLOCK) || inv.type == MSG_SUBBLOCK))
+                    (inv.type == MSG_CMPCT_BLOCK) || (inv.type == MSG_SUBBLOCK) || (inv.type == MSG_BOBTAILBLOCK)))
             {
                 dosMan.Misbehaving(pfrom, 20, BanReasonInvalidInventory);
                 return error("message inv invalid type = %u", inv.type);
@@ -1809,6 +1838,15 @@ bool ProcessMessage(CNode *pfrom, std::string strCommand, CDataStream &vRecv, in
         CSubBlock subblock;
         vRecv >> subblock;
         bobtailDagSet.Insert(subblock);
+    }
+
+    else if (strCommand == NetMsgType::BOBTAILBLOCK && !fImporting && !fReindex)
+    {
+        CBobtailBlock bobtailblock;
+        vRecv >> bobtailblock;
+
+        LOCK(cs_bobtailblocks);
+        bobtailBlocks[bobtailblock.GetHash()] = bobtailblock;
     }
 
     // Handle full blocks

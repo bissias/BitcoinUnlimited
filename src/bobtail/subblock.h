@@ -33,6 +33,13 @@ public:
         READWRITE(vtx);
     }
 
+    template <typename Stream>
+    CSubBlock(deserialize_type, Stream &s)
+    {
+        Unserialize(s);
+    }
+
+
     void SetNull();
 
     bool IsNull() const;

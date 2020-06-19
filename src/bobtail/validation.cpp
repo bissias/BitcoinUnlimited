@@ -30,6 +30,8 @@
 #include <boost/scope_exit.hpp>
 #include <unordered_set>
 
+extern CCriticalSection cs_bobtailblocks;
+extern std::map<uint256, CBobtailBlock> bobtailBlocks GUARDED_BY(cs_bobtailblocks);
 extern CBobtailDagSet bobtailDagSet;
 extern bool fCheckForPruning;
 extern std::map<uint256, NodeId> mapBlockSource;
@@ -790,7 +792,7 @@ bool ProcessNewBobtailBlock(CValidationState &state,
         }
         CheckBlockIndex(chainparams.GetConsensus());
 
-        CInv inv(MSG_BLOCK, hash);
+        CInv inv(MSG_BOBTAILBLOCK, hash);
         if (!ret)
         {
             // BU TODO: if block comes out of order (before its parent) this will happen.  We should cache the block
@@ -800,13 +802,22 @@ bool ProcessNewBobtailBlock(CValidationState &state,
             requester.BlockRejected(inv, pfrom);
 
             return error("%s: AcceptBlock FAILED", __func__);
-        }
-        else
-        {
-            // We must indicate to the request manager that the block was received only after it has
-            // been stored to disk (or been shown to be invalid). Doing so prevents unnecessary re-requests.
-            requester.Received(inv, pfrom);
-        }
+		}
+		else
+		{
+			{
+				LOCK(cs_bobtailblocks);
+				bobtailBlocks[pblock->GetHash()] = *pblock;
+			}
+
+			{
+				LOCK(cs_vNodes);
+				for (CNode *pnode : vNodes)
+				{
+					pnode->PushInventory(CInv(MSG_BOBTAILBLOCK, pblock->GetHash()));
+				}
+			}
+		}
     }
     /*! FIXME: There is somewhat of a race here during regtesting: If
       a lot of blocks are generated in one RPC call, parallel

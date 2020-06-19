@@ -152,9 +152,9 @@ void CBobtailDag::UpdateDagScore()
             }
             total_score = total_score + node_score;
             auto this_node = mapNodeScore.find(node);
-            if (iter != mapNodeScore.end())
+            if (this_node != mapNodeScore.end())
             {
-                iter->second = node_score;
+                this_node->second = node_score;
             }
         }
         ++riter;
