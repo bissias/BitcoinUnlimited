@@ -45,17 +45,15 @@ class BobtailBlocksTest(BitcoinTestFramework):
         for i in range(5):
             self.nodes[0].sendtoaddress(addr, Decimal("10"))
 
-        node_count = 0
         miner_node = 0
+        other_node = 1
         for i in range(30):
             new_block = self.nodes[miner_node].generatebobtailblocks(1)
-            # TODO : fix this wait,
-            # sync_blocks does not handle bobtail blocks yet, so manually wait here for now
-            time.sleep(1)
-            assert_equal(new_block[0], self.nodes[miner_node].getbobtailinfo()['chaintip'])
-            node_count = node_count + 1
+            self.sync_blocks()
+            assert_equal(new_block[miner_node], self.nodes[miner_node].getbobtailinfo()['chaintip'])
 
-            #TODO: get bobtail block propagation working and add test here
+            # compare miner node and another node to check for proper relay
+            assert_equal(self.nodes[miner_node].getbobtailinfo()['chaintip'], self.nodes[other_node].getbobtailinfo()['chaintip'])
 
 if __name__ == '__main__':
     BobtailBlocksTest().main()
