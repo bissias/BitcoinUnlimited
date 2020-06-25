@@ -4,7 +4,6 @@
 #include "test/test_bitcoin.h"
 #include <boost/math/distributions/gamma.hpp>
 #include <boost/test/unit_test.hpp>
-#include <iostream>
 
 BOOST_FIXTURE_TEST_SUITE(bobtail_tests, BasicTestingSetup)
 
@@ -29,9 +28,9 @@ BOOST_AUTO_TEST_CASE(test_dag_score)
      *      n4: 1
      *      n3: 1+ 2*1 = 3
      *      n2: 1
-     *      n1: 1 + 3*(3+1) = 13 
+     *      n1: 1 + 3*(3+1) = 13
      */
-    int anticipatedScore = 13;
+    int anticipatedTotalScore = 18;
     // root node
     CSubBlock subblock1;
     CDagNode *node1 = new CDagNode(subblock1);
@@ -56,8 +55,7 @@ BOOST_AUTO_TEST_CASE(test_dag_score)
     dag.Insert(node3);
     dag.Insert(node4);
 
-    std::cout<<"score: "<<dag.score<<std::endl;
-    BOOST_CHECK(dag.score == anticipatedScore);
+    BOOST_CHECK(dag.score == anticipatedTotalScore);
 }
 
 BOOST_AUTO_TEST_CASE(arith_uint256_sanity)
