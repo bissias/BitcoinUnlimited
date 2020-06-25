@@ -134,11 +134,9 @@ void CBobtailDag::UpdateDagScore()
     // calculate the score
     uint16_t total_score = 0;
     std::vector<std::set<CDagNode*> >::reverse_iterator riter = leveled_dag.rbegin();
-    ++riter;
     size_t depth = 1;
     while (riter != leveled_dag.rend())
     {
-        ++depth;
         for (auto &node : *riter)
         {
             uint64_t node_score = 1;
@@ -158,6 +156,7 @@ void CBobtailDag::UpdateDagScore()
             }
         }
         ++riter;
+        ++depth;
     }
     score = total_score;
 }
@@ -186,6 +185,9 @@ bool CBobtailDag::Insert(CDagNode* new_node)
     // change to merge in c++17
     spent_outputs.insert(new_spends.begin(), new_spends.end());
     _dag.emplace_back(new_node);
+
+    UpdateDagScore();
+
     return true;
 }
 
