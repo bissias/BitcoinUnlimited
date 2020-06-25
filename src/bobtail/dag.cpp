@@ -186,6 +186,9 @@ bool CBobtailDag::Insert(CDagNode* new_node)
     // change to merge in c++17
     spent_outputs.insert(new_spends.begin(), new_spends.end());
     _dag.emplace_back(new_node);
+
+    UpdateDagScore();
+
     return true;
 }
 
