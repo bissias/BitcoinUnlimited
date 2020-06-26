@@ -99,4 +99,29 @@ BOOST_AUTO_TEST_CASE(test_kos_threshold)
     BOOST_CHECK(thresh > target.getdouble()*k);
 }
 
+BOOST_AUTO_TEST_CASE(test_is_below_kos_threshold)
+{
+    uint8_t k = 3;
+    arith_uint256 target(1e6);
+    arith_uint256 lowPow(1e5);
+    arith_uint256 highPow(2e7);
+
+    // low pow should pass
+    BOOST_CHECK(IsBelowKOSThreshold(lowPow, target, k));
+ 
+    // high pow should fail
+    BOOST_CHECK(!IsBelowKOSThreshold(highPow, target, k));
+}
+
+BOOST_AUTO_TEST_CASE(test_best_k)
+{
+    uint16_t desiredDagNodes = 30;
+    double probability = 0.9;
+
+    uint32_t k = GetBestK(desiredDagNodes, probability);
+
+    // wolfram alpha 90th percentile from query: "gamma quantile shape=23 scale=1 "
+    BOOST_CHECK(k == 23);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

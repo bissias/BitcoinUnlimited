@@ -132,17 +132,27 @@ bool CheckSubBlockPoW(const CBlockHeader &header, const Consensus::Params &param
 
     arith_uint256 pow = UintToArith256(header.GetHash());
 
-    return pow.getdouble() < GetKOSThreshold(bnTarget, k);
+    return IsBelowKOSThreshold(pow, bnTarget, k);
 }
 
 double GetKOSThreshold(arith_uint256 target, uint8_t k)
+{
+    if (k == 0)
+        return 0.0;
+
+    boost::math::gamma_distribution<> bobtail_gamma(k, target.getdouble());
+
+    return quantile(bobtail_gamma, KOS_INCLUSION_PROB);
+}
+
+bool IsBelowKOSThreshold(arith_uint256 pow, arith_uint256 target, uint8_t k)
 {
     if (k == 0)
         return true;
 
     boost::math::gamma_distribution<> bobtail_gamma(k, target.getdouble());
 
-    return quantile(bobtail_gamma, KOS_INCLUSION_PROB);
+    return cdf(bobtail_gamma, pow.getdouble()) <= KOS_INCLUSION_PROB;
 }
 
 uint32_t GetBestK(uint16_t desiredDagNodes, double probability)
