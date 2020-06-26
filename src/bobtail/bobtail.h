@@ -18,5 +18,11 @@ bool CheckBobtailPoW(CBobtailBlock block, const Consensus::Params &params, uint8
 bool CheckBobtailPoWFromOrderedProofs(std::vector<arith_uint256> proofs, arith_uint256 target, uint8_t k);
 bool CheckSubBlockPoW(const CBlockHeader &header, const Consensus::Params &params, uint8_t k);
 double GetKOSThreshold(arith_uint256 target, uint8_t k);
+/*
+ * Uses Theorem 3 from the NDSS Bobtail paper and binary search to
+ * find the best value for k that delivers no more than the desired 
+ * number of nodes in the dag (subblocks) with the given probability.
+ */
+uint32_t GetBestK(uint16_t desiredDagNodes, double probability);
 
 #endif

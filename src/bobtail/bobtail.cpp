@@ -144,3 +144,22 @@ double GetKOSThreshold(arith_uint256 target, uint8_t k)
 
     return quantile(bobtail_gamma, KOS_INCLUSION_PROB);
 }
+
+uint32_t GetBestK(uint16_t desiredDagNodes, double probability)
+{
+    uint32_t kLow = 0;
+    uint32_t kHigh = std::numeric_limits<uint16_t>::max();
+
+    while (kHigh - kLow > 1)
+    {
+        uint32_t kMid = kLow + (kHigh-kLow) / 2;
+        boost::math::gamma_distribution<> gammaMid(kMid, 1);
+
+        if (quantile(gammaMid, probability) < desiredDagNodes)
+            kLow = kMid;
+        else
+            kHigh = kMid;
+    }
+
+    return kLow;
+}
