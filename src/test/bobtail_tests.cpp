@@ -103,16 +103,6 @@ BOOST_AUTO_TEST_CASE(test_scaling_gamma, *boost::unit_test::tolerance(0.000001))
     double relative_error = std::abs(mean1 - mean2) / mean1;
 }
 
-BOOST_AUTO_TEST_CASE(test_kos_threshold)
-{
-    uint8_t k = 3;
-    arith_uint256 target(1e6);
-
-    double thresh = GetKOSThreshold(target, k);
-    // Threshold should be larger than mean
-    BOOST_CHECK(thresh > target.getdouble()*k);
-}
-
 BOOST_AUTO_TEST_CASE(test_is_below_kos_threshold)
 {
     uint8_t k = 3;

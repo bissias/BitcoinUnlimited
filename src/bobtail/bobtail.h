@@ -18,7 +18,6 @@ bool ProcessNewSubBlock(const CSubBlock &subblock);
 bool CheckBobtailPoW(CBobtailBlock block, const Consensus::Params &params, uint8_t k);
 bool CheckBobtailPoWFromOrderedProofs(std::vector<arith_uint256> proofs, arith_uint256 target, uint8_t k);
 bool CheckSubBlockPoW(const CBlockHeader &header, const Consensus::Params &params, uint8_t k);
-double GetKOSThreshold(arith_uint256 target, uint8_t k);
 /*
  * Note that scaleFactor leads to a reduction in the scale parameter of the 
  * gamma distribution by the amount target/scaleFactor. The unit test
