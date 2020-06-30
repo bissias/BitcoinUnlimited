@@ -132,15 +132,39 @@ bool CheckSubBlockPoW(const CBlockHeader &header, const Consensus::Params &param
 
     arith_uint256 pow = UintToArith256(header.GetHash());
 
-    return pow.getdouble() < GetKOSThreshold(bnTarget, k);
+    return IsBelowKOSThreshold(pow, bnTarget, k);
 }
 
-double GetKOSThreshold(arith_uint256 target, uint8_t k)
+bool IsBelowKOSThreshold(arith_uint256 pow, arith_uint256 target, uint8_t k, int scaleFactor)
 {
     if (k == 0)
         return true;
 
-    boost::math::gamma_distribution<> bobtail_gamma(k, target.getdouble());
+    // Scale everything down as though the target was only scaleFactor
+    arith_uint256 scalar = target / arith_uint256(scaleFactor);
+    arith_uint256 scaledTarget = arith_uint256(scaleFactor);
+    arith_uint256 scaledPow = pow / scalar;
 
-    return quantile(bobtail_gamma, KOS_INCLUSION_PROB);
+    boost::math::gamma_distribution<> bobtail_gamma(k, scaledTarget.getdouble());
+
+    return cdf(bobtail_gamma, scaledPow.getdouble()) <= KOS_INCLUSION_PROB;
+}
+
+uint32_t GetBestK(uint16_t desiredDagNodes, double probability)
+{
+    uint32_t kLow = 0;
+    uint32_t kHigh = std::numeric_limits<uint16_t>::max();
+
+    while (kHigh - kLow > 1)
+    {
+        uint32_t kMid = kLow + (kHigh-kLow) / 2;
+        boost::math::gamma_distribution<> gammaMid(kMid, 1);
+
+        if (quantile(gammaMid, probability) < desiredDagNodes)
+            kLow = kMid;
+        else
+            kHigh = kMid;
+    }
+
+    return kLow;
 }
