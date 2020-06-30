@@ -145,14 +145,19 @@ double GetKOSThreshold(arith_uint256 target, uint8_t k)
     return quantile(bobtail_gamma, KOS_INCLUSION_PROB);
 }
 
-bool IsBelowKOSThreshold(arith_uint256 pow, arith_uint256 target, uint8_t k)
+bool IsBelowKOSThreshold(arith_uint256 pow, arith_uint256 target, uint8_t k, int scaleFactor)
 {
     if (k == 0)
         return true;
 
-    boost::math::gamma_distribution<> bobtail_gamma(k, target.getdouble());
+    // Scale everything down as though the target was only scaleFactor
+    arith_uint256 scalar = target / arith_uint256(scaleFactor);
+    arith_uint256 scaledTarget = arith_uint256(scaleFactor);
+    arith_uint256 scaledPow = pow / scalar;
 
-    return cdf(bobtail_gamma, pow.getdouble()) <= KOS_INCLUSION_PROB;
+    boost::math::gamma_distribution<> bobtail_gamma(k, scaledTarget.getdouble());
+
+    return cdf(bobtail_gamma, scaledPow.getdouble()) <= KOS_INCLUSION_PROB;
 }
 
 uint32_t GetBestK(uint16_t desiredDagNodes, double probability)

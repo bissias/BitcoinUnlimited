@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(gamma_sanity_check)
     BOOST_CHECK(quantile(bobtail_gamma, cdf(bobtail_gamma, mean(bobtail_gamma))) == k*scale.getdouble());
 }
 
-BOOST_AUTO_TEST_CASE(scaling_gamma, *boost::unit_test::tolerance(0.000001))
+BOOST_AUTO_TEST_CASE(test_scaling_gamma, *boost::unit_test::tolerance(0.000001))
 {
     uint8_t k = 3;
     arith_uint256 scale = arith_uint256(1e6);
@@ -117,13 +117,17 @@ BOOST_AUTO_TEST_CASE(test_is_below_kos_threshold)
 {
     uint8_t k = 3;
     arith_uint256 target(1e6);
-    arith_uint256 lowPow(1e5);
-    arith_uint256 highPow(2e7);
+    arith_uint256 lowPow(k*1e5);
+    arith_uint256 highPow(k*1e7);
 
+    // the first two tests do not use scaling
     // low pow should pass
-    BOOST_CHECK(IsBelowKOSThreshold(lowPow, target, k));
- 
+    BOOST_CHECK(IsBelowKOSThreshold(lowPow, target, k, (int)target.getdouble()));
     // high pow should fail
+    BOOST_CHECK(!IsBelowKOSThreshold(highPow, target, k, (int)target.getdouble()));
+
+    // now check with default scaling
+    BOOST_CHECK(IsBelowKOSThreshold(lowPow, target, k));
     BOOST_CHECK(!IsBelowKOSThreshold(highPow, target, k));
 }
 
