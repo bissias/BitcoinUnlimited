@@ -89,6 +89,20 @@ BOOST_AUTO_TEST_CASE(gamma_sanity_check)
     BOOST_CHECK(quantile(bobtail_gamma, cdf(bobtail_gamma, mean(bobtail_gamma))) == k*scale.getdouble());
 }
 
+BOOST_AUTO_TEST_CASE(scaling_gamma, *boost::unit_test::tolerance(0.000001))
+{
+    uint8_t k = 3;
+    arith_uint256 scale = arith_uint256(1e6);
+    arith_uint256 scaler = arith_uint256(13);
+    arith_uint256 scaled_scale = scale / scaler;
+    boost::math::gamma_distribution<> bobtail_gamma(k, scale.getdouble());
+    boost::math::gamma_distribution<> bobtail_gamma_scaled(k, scaled_scale.getdouble());
+
+    double mean1 = mean(bobtail_gamma);
+    double mean2 = scaler.getdouble()*mean(bobtail_gamma_scaled);
+    double relative_error = std::abs(mean1 - mean2) / mean1;
+}
+
 BOOST_AUTO_TEST_CASE(test_kos_threshold)
 {
     uint8_t k = 3;
