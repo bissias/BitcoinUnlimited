@@ -13,6 +13,21 @@
 #include "primitives/block.h"
 #include "txmempool.h"
 
+static const bool DEFAULT_PRINTPRIORITY = false;
+
+struct NumericallyLessTxHashComparator
+{
+public:
+    bool operator()(const CTxMemPoolEntry *a, const CTxMemPoolEntry *b) const
+    {
+        return a->GetTx().GetHash() < b->GetTx().GetHash();
+    }
+    bool operator()(const CTransactionRef &a, const CTransactionRef &b) const
+    {
+        return a->GetHash() < b->GetHash();
+    }
+};
+
 class ScoreCompare
 {
 public:

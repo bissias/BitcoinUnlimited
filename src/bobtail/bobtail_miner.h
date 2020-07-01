@@ -4,9 +4,11 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_MINER_H
-#define BITCOIN_MINER_H
+#ifndef BITCOIN_BOBTAIL_BOBTAILMINER_H
+#define BITCOIN_BOBTAIL_BOBTAILMINER_H
 
+#include "bobtail/bobtail.h"
+#include "bobtail/subblock.h"
 #include "miner_common.h"
 
 #include <memory>
@@ -33,41 +35,15 @@ namespace Consensus
 struct Params;
 };
 
-struct CBlockTemplate
+struct CBobtailBlockTemplate
 {
-    CBlock block;
+    CBobtailBlockRef bobtailblock;
     std::vector<CAmount> vTxFees;
     std::vector<int64_t> vTxSigOps;
+    CBobtailBlockTemplate() : bobtailblock(new CBobtailBlock()) {}
 };
 
-
-/** Comparator for CTxMemPool::txiter objects.
- *  It simply compares the internal memory address of the CTxMemPoolEntry object
- *  pointed to. This means it has no meaning, and is only useful for using them
- *  as key in other indexes.
- */
-struct CompareCTxMemPoolIter
-{
-    bool operator()(const CTxMemPool::txiter &a, const CTxMemPool::txiter &b) const { return &(*a) < &(*b); }
-};
-
-/** A comparator that sorts transactions based on number of ancestors.
- * This is sufficient to sort an ancestor package in an order that is valid
- * to appear in a block.
- */
-struct CompareTxIterByAncestorCount
-{
-    bool operator()(const CTxMemPool::txiter &a, const CTxMemPool::txiter &b)
-    {
-        if (a->GetCountWithAncestors() != b->GetCountWithAncestors())
-            return a->GetCountWithAncestors() < b->GetCountWithAncestors();
-        return CTxMemPool::CompareIteratorByHash()(a, b);
-    }
-};
-
-
-/** Generate a new block, without valid proof-of-work */
-class BlockAssembler
+class BobtailBlockAssembler
 {
 private:
     const CChainParams &chainparams;
@@ -94,9 +70,10 @@ private:
     uint64_t maxSigOpsAllowed = 0;
 
 public:
-    BlockAssembler(const CChainParams &chainparams);
-    /** Construct a new block template with coinbase to scriptPubKeyIn */
-    std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
+    BobtailBlockAssembler(const CChainParams &chainparams);
+
+    /** Internal method to construct a new block template */
+    std::unique_ptr<CBobtailBlockTemplate> CreateNewBobtailBlock(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
 
 private:
     // utility functions
@@ -105,6 +82,9 @@ private:
     /** Add a tx to the block */
     void AddToBlock(std::vector<const CTxMemPoolEntry *> *vtxe, CTxMemPool::txiter iter);
 
+    // incomplete, only used for delta blocks
+    void AddToBlock(std::vector<const CTxMemPoolEntry *> *vtxe, CTxMemPoolEntry *entry);
+
     // Methods for how to add transactions to a block.
     /** Add transactions based on modified feerate */
     void addScoreTxs(std::vector<const CTxMemPoolEntry *> *vtxe);
@@ -112,7 +92,7 @@ private:
     void addPriorityTxs(std::vector<const CTxMemPoolEntry *> *vtxe);
 
     /** Add transactions based on feerate including unconfirmed ancestors */
-    void addPackageTxs(std::vector<const CTxMemPoolEntry *> *vtxe, bool fCanonical);
+    void addPackageTxs(std::vector<const CTxMemPoolEntry *> *vtxe);
 
     // helper function for addScoreTxs and addPriorityTxs
     bool IsIncrementallyGood(uint64_t nExtraSize, unsigned int nExtraSigOps);
@@ -123,10 +103,6 @@ private:
 
     /** Bytes to reserve for coinbase and block header */
     uint64_t reserveBlockSize(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
-    /** Internal method to construct a new block template */
-    std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript &scriptPubKeyIn,
-        bool blockstreamCoreCompatible,
-        int64_t coinbaseSize = -1);
     /** Constructs a coinbase transaction */
     CTransactionRef coinbaseTx(const CScript &scriptPubKeyIn, int nHeight, CAmount nValue);
 
@@ -135,23 +111,6 @@ private:
     bool TestPackageSigOps(uint64_t packageSize, unsigned int packageSigOps);
     /** Test if a set of transactions are all final */
     bool TestPackageFinality(const CTxMemPool::setEntries &package);
-    /** Sort the package in an order that is valid to appear in a block */
-    void SortForBlock(const CTxMemPool::setEntries &package, std::vector<CTxMemPool::txiter> &sortedEntries);
 };
 
-// TODO: There is no mining.h
-// Create mining.h (The next two functions are in mining.cpp) or leave them here ?
-
-/** Submit a mined block */
-UniValue SubmitBlock(CBlock &block);
-/** Make a block template to send to miners. */
-// implemented in mining.cpp
-UniValue mkblocktemplate(const UniValue &params,
-    int64_t coinbaseSize = -1,
-    CBlock *pblockOut = nullptr,
-    const CScript &coinbaseScript = CScript());
-
-// Force block template recalculation the next time a template is requested
-void SignalBlockTemplateChange();
-
-#endif // BITCOIN_MINER_H
+#endif
