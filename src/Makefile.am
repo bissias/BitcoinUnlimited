@@ -128,10 +128,11 @@ BITCOIN_CORE_H = \
   blockstorage/sequential_files.h \
   bitnodes.h \
   bloom.h \
+  bobtail/bobtail_miner.h \
   bobtail/bobtail.h \
   bobtail/bobtailblock.h \
   bobtail/dag.h \
-  bobtail/miner.h \
+  bobtail/subblock_miner.h \
   bobtail/subblock.h \
   bobtail/validation.h \
   bobtaildb.h \
@@ -291,9 +292,10 @@ libbitcoin_server_a_SOURCES = \
   blockstorage/sequential_files.cpp \
   blockstorage/blockstorage.cpp \
   bloom.cpp \
+  bobtail/bobtail_miner.cpp \
   bobtail/bobtail.cpp \
   bobtail/dag.cpp \
-  bobtail/miner.cpp \
+  bobtail/subblock_miner.cpp \
   bobtail/subblock.cpp \
   bobtail/validation.cpp \
   bobtaildb.cpp \

@@ -7,7 +7,8 @@
 #include "blockstorage/blockstorage.h"
 #include "bobtail/bobtail.h"
 #include "bobtail/dag.h"
-#include "bobtail/miner.h"
+#include "bobtail/bobtail_miner.h"
+#include "bobtail/subblock_miner.h"
 #include "bobtail/validation.h"
 #include "chain.h"
 #include "chainparams.h"
@@ -355,7 +356,7 @@ UniValue getbobtailinfo(const UniValue &params, bool fHelp)
 static const CRPCCommand commands[] = {
     //  category              name                      actor (function)         okSafeMode
     //  --------------------- ------------------------  -----------------------  ----------
-    {"generating", "generatesubblocks", &generatesubblocks, true}, {"generating", "generatebobtailblocks", &generatebobtailblocks, true}, 
+    {"generating", "generatesubblocks", &generatesubblocks, true}, {"generating", "generatebobtailblocks", &generatebobtailblocks, true},
     {"generating", "generatesubblockstoaddress", &generatesubblockstoaddress, true}, {"generating", "generatesubblockstoaddress", &generatesubblockstoaddress, true},
     {"bobtail", "getdaginfo", &getdaginfo, true}, {"bobtail", "getdagtips", &getdagtips, true}, {"bobtail", "getbobtailinfo", &getbobtailinfo, true}
 };

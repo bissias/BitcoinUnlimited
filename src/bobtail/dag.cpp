@@ -379,7 +379,7 @@ bool CBobtailDagSet::IsTemporallySorted()
     return true;
 }
 
-bool CBobtailDagSet::GetBestDag(std::set<CDagNode*> &dag)
+bool CBobtailDagSet::GetBestDag(std::set<CDagNode> &dag)
 {
     RECURSIVEREADLOCK(cs_dagset);
     if (vdags.empty())
@@ -412,7 +412,7 @@ bool CBobtailDagSet::GetBestDag(std::set<CDagNode*> &dag)
     }
     for (auto& node :vdags[best_dag]._dag)
     {
-        dag.emplace(node);
+        dag.emplace(*node);
     }
     return true;
 }
