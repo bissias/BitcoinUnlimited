@@ -94,7 +94,7 @@ uint64_t BobtailBlockAssembler::reserveBlockSize(const CScript &scriptPubKeyIn, 
 
     // This serializes with output value, a fixed-length 8 byte field, of zero and height, a serialized CScript
     // signed integer taking up 4 bytes for heights 32768-8388607 (around the year 2167) after which it will use 5
-    nCoinbaseSize = ::GetSerializeSize(coinbaseTx(scriptPubKeyIn, 400000, 0), SER_NETWORK, PROTOCOL_VERSION);
+    nCoinbaseSize = ::GetSerializeSize(coinbaseTx(scriptPubKeyIn, 400000, 0, {}), SER_NETWORK, PROTOCOL_VERSION);
 
     if (coinbaseSize >= 0) // Explicit size of coinbase has been requested
     {
@@ -113,17 +113,26 @@ uint64_t BobtailBlockAssembler::reserveBlockSize(const CScript &scriptPubKeyIn, 
     return nHeaderSize + nCoinbaseSize;
 }
 
-CTransactionRef BobtailBlockAssembler::coinbaseTx(const CScript &scriptPubKeyIn, int _nHeight, CAmount nValue)
+CTransactionRef BobtailBlockAssembler::coinbaseTx(const CScript &scriptPubKeyIn, int _nHeight, CAmount nValue, const std::set<CDagNode> &dag)
 {
     //TODO: Should payout to lowest k subblock miners
     CMutableTransaction tx;
 
     tx.vin.resize(1);
     tx.vin[0].prevout.SetNull();
-    tx.vout.resize(1);
-    tx.vout[0].scriptPubKey = scriptPubKeyIn;
-    tx.vout[0].nValue = nValue;
     tx.vin[0].scriptSig = CScript() << _nHeight << OP_0;
+    // set the vout to be bobtail K at least
+    tx.vout.resize(BOBTAIL_K);
+    CAmount valuePer = nValue / BOBTAIL_K;
+    unsigned int i = 0;
+    std::set<CDagNode>::iterator iter = dag.begin();
+    while (i < BOBTAIL_K)
+    {
+        tx.vout[i].scriptPubKey = (*iter).subblock.vtx[0]->vin[0].scriptSig;
+        tx.vout[i].nValue = valuePer;
+    }
+
+    // TODO : do something if the sum of valuePer does not match the nValue arg because of truncation
 
     // BU005 add block size settings to the coinbase
     std::string cbmsg = FormatCoinbaseMessage(BUComments, minerComment);
@@ -227,9 +236,14 @@ std::unique_ptr<CBobtailBlockTemplate> BobtailBlockAssembler::CreateNewBobtailBl
             pblocktemplate->vTxSigOps.push_back(txe->GetSigOpCount());
         }
 
+        std::set<CDagNode> bestdag;
+        if (bobtailDagSet.GetBestDag(bestdag) == false)
+        {
+            return nullptr;
+        }
         // Create coinbase transaction.
         pblock->vtx[0] =
-            coinbaseTx(scriptPubKeyIn, nHeight, nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus()));
+            coinbaseTx(scriptPubKeyIn, nHeight, nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus()), bestdag);
         pblocktemplate->vTxFees[0] = -nFees;
 
         // Fill in header

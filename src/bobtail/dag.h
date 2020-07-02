@@ -35,6 +35,11 @@ public:
         dag_id = -1;
     }
 
+    friend bool operator<(const CDagNode &a, const CDagNode &b)
+    {
+        return a.hash < b.hash;
+    }
+
     void AddAncestor(CDagNode* ancestor);
     void AddDescendant(CDagNode* descendant);
     bool IsBase();
@@ -105,7 +110,7 @@ public:
     bool Insert(const CSubBlock &sub_block);
     void TemporalSort();
     bool IsTemporallySorted();
-    bool GetBestDag(std::set<CDagNode*> &dag);
+    bool GetBestDag(std::set<CDagNode> &dag);
     std::vector<uint256> GetTips();
 };
 

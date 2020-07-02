@@ -8,6 +8,7 @@
 #define BITCOIN_BOBTAIL_BOBTAILMINER_H
 
 #include "bobtail/bobtail.h"
+#include "bobtail/dag.h"
 #include "bobtail/subblock.h"
 #include "miner_common.h"
 
@@ -104,7 +105,7 @@ private:
     /** Bytes to reserve for coinbase and block header */
     uint64_t reserveBlockSize(const CScript &scriptPubKeyIn, int64_t coinbaseSize = -1);
     /** Constructs a coinbase transaction */
-    CTransactionRef coinbaseTx(const CScript &scriptPubKeyIn, int nHeight, CAmount nValue);
+    CTransactionRef coinbaseTx(const CScript &scriptPubKeyIn, int nHeight, CAmount nValue, const std::set<CDagNode> &dag);
 
     // helper functions for addPackageTxs()
     /** Test whether a package, if added to the block, would make the block exceed the sigops limits */
